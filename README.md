@@ -10,6 +10,21 @@
 
 ---
 
+## 📥 ダウンロード (ダウンロードしてすぐ使えます)
+
+環境に合わせて以下のいずれかをダウンロードしてご利用ください：
+
+| 配布形式 | ダウンロードリンク | ファイルサイズ | 特徴 |
+| :--- | :--- | :--- | :--- |
+| **スタンドアロン実行ファイル** | [📥 **NewPing.exe をダウンロード**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/NewPing.exe) | 約 10 MB | インストール不要。ダウンロード後そのまま起動できるポータブル版 |
+| **NSIS インストーラー** | [📥 **Pingツール_0.1.0_x64-setup.exe をダウンロード**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/bundle/nsis/Ping%E3%83%84%E3%83%BC%E3%83%AB_0.1.0_x64-setup.exe) | 約 2.4 MB | スタートメニューやデスクトップにショートカットを作成するセットアップ版 |
+
+> [!TIP]
+> - 初回起動時に Windows SmartScreen の警告が表示された場合は、「詳細情報」→「実行」をクリックしてください。
+> - 監視対象リストは実行ファイルと同じフォルダに `ping-list.config` として自動保存されます。
+
+---
+
 ## ✨ 主な特長
 
 - 🚀 **超軽量＆高速動作**: Tauri v2 + Rust による最小限のメモリ・CPUリソース消費と即時起動。
@@ -84,12 +99,13 @@ npm run tauri build
 
 ### 📦 生成される実行ファイルとインストーラーのパス
 
-ビルド完了後、以下のパスに実行ファイルおよびインストーラーが生成されます：
+ビルド完了後、以下のパスに実行ファイルおよびインストーラーが生成されます（クリックしてダウンロードも可能です）：
 
-| 種別 | ファイルパス | 説明 |
-| :--- | :--- | :--- |
-| **スタンドアロン実行ファイル** | `src-tauri/target/release/NewPing.exe` | インストール不要で単体起動できるポータブル実行バイナリ |
-| **NSIS インストーラー** | `src-tauri/target/release/bundle/nsis/Pingツール_0.1.0_x64-setup.exe` | スタートメニューやデスクトップショートカットを作成するセットアッププログラム |
+| 種別 | ダウンロードリンク | ファイルパス | 説明 |
+| :--- | :--- | :--- | :--- |
+| **スタンドアロン実行ファイル** | [📥 **NewPing.exe**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/NewPing.exe) | `src-tauri/target/release/NewPing.exe` | インストール不要で単体起動できるポータブル実行バイナリ |
+| **NSIS インストーラー** | [📥 **Pingツール_0.1.0_x64-setup.exe**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/bundle/nsis/Ping%E3%83%84%E3%83%BC%E3%83%AB_0.1.0_x64-setup.exe) | `src-tauri/target/release/bundle/nsis/Pingツール_0.1.0_x64-setup.exe` | スタートメニューやデスクトップショートカットを作成するセットアッププログラム |
+
 
 ---
 
