@@ -5,7 +5,11 @@ dist-ssr/
 *.local
 
 # Tauri / Rust
-src-tauri/target/
+src-tauri/target/*
+!src-tauri/target/release/
+src-tauri/target/release/*
+!src-tauri/target/release/*.exe
+!src-tauri/target/release/bundle/
 src-tauri/gen/schemas/
 
 # Logs
