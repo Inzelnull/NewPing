@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="ja" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pingツール</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app" class="app-container">
+      <!-- Top Navigation Bar -->
+      <header class="app-header">
+        <div class="logo-area">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" stroke-opacity="0.35"/>
+              <circle cx="12" cy="12" r="6" stroke-opacity="0.7"/>
+              <circle cx="12" cy="12" r="2" fill="currentColor"/>
+              <path d="M12 2a10 10 0 0 1 10 10" stroke-width="2.5"/>
+            </svg>
+          </div>
+          <div class="logo-title">
+            <span class="brand-name">Pingツール</span>
+          </div>
+        </div>
+
+        <nav class="nav-tabs" role="tablist">
+          <button class="nav-tab active" id="tab-btn-results" data-tab="results" role="tab" aria-selected="true">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <line x1="3" y1="9" x2="21" y2="9"/>
+              <line x1="9" y1="21" x2="9" y2="9"/>
+            </svg>
+            <span>Ping結果</span>
+            <span class="tab-indicator"></span>
+          </button>
+          <button class="nav-tab" id="tab-btn-settings" data-tab="settings" role="tab" aria-selected="false">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+            <span>Ping対象設定</span>
+            <span class="tab-indicator"></span>
+          </button>
+          <button class="nav-tab" id="tab-btn-options" data-tab="options" role="tab" aria-selected="false">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="4" y1="21" x2="4" y2="14"/>
+              <line x1="4" y1="10" x2="4" y2="3"/>
+              <line x1="12" y1="21" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12" y2="3"/>
+              <line x1="20" y1="21" x2="20" y2="16"/>
+              <line x1="20" y1="12" x2="20" y2="3"/>
+              <line x1="1" y1="14" x2="7" y2="14"/>
+              <line x1="9" y1="8" x2="15" y2="8"/>
+              <line x1="17" y1="16" x2="23" y2="16"/>
+            </svg>
+            <span>Ping設定</span>
+            <span class="tab-indicator"></span>
+          </button>
+          <button class="nav-tab" id="tab-btn-stats" data-tab="stats" role="tab" aria-selected="false">
+            <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="20" x2="18" y2="10"/>
+              <line x1="12" y1="20" x2="12" y2="4"/>
+              <line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+            <span>Ping統計</span>
+            <span class="tab-indicator"></span>
+          </button>
+        </nav>
+
+        <div class="header-status-group">
+          <div class="status-pill" id="global-status-pill">
+            <span class="status-dot"></span>
+            <span class="status-text" id="global-status-text">停止中</span>
+          </div>
+          <button id="btn-toggle-ping" class="btn btn-primary header-ping-btn">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            <span id="btn-toggle-ping-text">Ping開始</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Content Area -->
+      <main class="app-main">
+        <!-- View 1: Ping Results -->
+        <section id="view-results" class="view-panel active">
+          <div class="panel-header">
+            <div class="panel-header-left">
+              <h1 class="panel-title">Ping監視モニター</h1>
+              <p class="panel-desc" id="results-panel-desc">全対象へ1秒間隔でPing発行中（右が最新結果: <span class="legend-blue">〇 OK</span> / <span class="legend-red">× NG</span>）</p>
+            </div>
+            <div class="panel-header-actions">
+              <button id="btn-clear-history" class="btn btn-secondary" title="表示履歴をクリア">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="1 4 1 10 7 10"/>
+                  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                </svg>
+                <span>履歴<br>クリア</span>
+              </button>
+              <button id="btn-batch-traceroute" class="btn btn-secondary action-traceroute-btn" title="全対象へ並行してTracerouteを実行し1ファイルにまとめて保存">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                </svg>
+                <span id="btn-batch-traceroute-text">Traceroute<br>一括実行</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Ping NG Alert Floating Popup (Bottom-Right) -->
+          <div id="ng-alert-popup" class="ng-alert-popup hidden" aria-live="polite">
+            <div class="ng-alert-header">
+              <div class="ng-alert-badge">
+                <span class="ng-alert-pulse-dot"></span>
+                <span class="ng-alert-title">Ping 不通検知</span>
+              </div>
+              <span class="ng-alert-count" id="ng-alert-count">0件</span>
+            </div>
+            <div class="ng-alert-list" id="ng-alert-list">
+              <!-- Dynamically rendered NG target items -->
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div id="results-empty" class="empty-state hidden">
+            <div class="empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <h3>Ping対象が設定されていません</h3>
+            <p>「Ping対象設定」タブで監視対象のIPアドレスと名称を登録してください。</p>
+            <button id="btn-goto-settings" class="btn btn-primary">Ping対象設定を開く</button>
+          </div>
+
+          <!-- Ping Results Table / Grid Container -->
+          <div id="results-container" class="results-container">
+            <div class="results-table-header">
+              <div class="header-col-target">Ping対象 (名称 / IP)</div>
+              <div class="header-col-status">最新状態</div>
+              <div class="header-col-count">実行回数</div>
+              <div class="header-col-stream">
+                <span class="stream-label-old">◀ 過去</span>
+                <span class="stream-title" id="stream-title-text">応答履歴 (直近100件 / 青: 〇 OK / 赤: × NG)</span>
+                <span class="stream-label-new">最新 ▶</span>
+              </div>
+            </div>
+            <div id="results-scroll-area" class="results-table-wrapper">
+              <table class="results-table" id="results-table">
+                <tbody id="results-tbody">
+                  <!-- Dynamically generated rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- View 2: Ping Target Settings -->
+        <section id="view-settings" class="view-panel">
+          <div class="panel-header">
+            <div class="panel-header-left">
+              <h1 class="panel-title">Ping対象設定</h1>
+              <p class="panel-desc">IPアドレスと日本語名称をスペース区切りで1行ずつ入力してください（起動時自動読込: ping-list.config）</p>
+            </div>
+            <div class="panel-header-actions">
+              <button id="btn-reload-config" class="btn btn-secondary">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                </svg>
+                <span>再読込</span>
+              </button>
+              <button id="btn-save-config" class="btn btn-primary">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                  <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                <span>設定を保存</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="settings-grid">
+            <!-- Textarea Editor Card -->
+            <div class="settings-editor-card">
+              <div class="editor-header">
+                <span class="editor-title">ping-list.config</span>
+                <span class="editor-badge" id="target-count-badge">0件</span>
+              </div>
+              <div class="editor-body">
+                <textarea id="config-textarea" class="config-textarea" spellcheck="false" placeholder="例:&#10;8.8.8.8 Google DNS&#10;1.1.1.1 Cloudflare DNS&#10;192.168.1.1 ルーター&#10;127.0.0.1 自PC"></textarea>
+              </div>
+            </div>
+
+            <!-- Preview Card / Guide -->
+            <div class="settings-sidebar">
+              <div class="guide-card">
+                <h3>💡 記入形式のヒント</h3>
+                <p>各行に <code>[IPアドレス] [スペース] [名称]</code> の形式で入力します。</p>
+                <ul>
+                  <li>空白行や <code>#</code> で始まる行は無視されます</li>
+                  <li>スペースまたはタブで区切ることができます</li>
+                  <li>設定を保存すると即座にリストに反映されます</li>
+                </ul>
+              </div>
+
+              <div class="preview-card">
+                <h3>認識されたターゲット一覧</h3>
+                <div class="preview-list" id="preview-list">
+                  <!-- Dynamically populated target preview cards -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- View 3: Ping Options (Interval, Delay, Packet Size, Timeout, Stream Count, Traceroute Timeout, Theme) -->
+        <section id="view-options" class="view-panel">
+          <div class="panel-header">
+            <div class="panel-header-left">
+              <h1 class="panel-title">Ping設定</h1>
+              <p class="panel-desc">Ping実行間隔、ディレイ、パケットサイズ、応答タイムアウト値、Tracerouteタイムアウト等の調整（起動時自動読込: ping-parameters.conf）</p>
+            </div>
+            <div class="panel-header-actions">
+              <button id="btn-reset-options" class="btn btn-secondary" title="初期値に戻す">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                  <polyline points="1 4 1 10 7 10"/>
+                </svg>
+                <span>初期値に戻す</span>
+              </button>
+              <button id="btn-save-options" class="btn btn-primary">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                  <polyline points="7 3 7 8 15 8"/>
+                </svg>
+                <span>設定を保存</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="options-container">
+            <!-- Validation Alert Box (Hidden when valid) -->
+            <div id="options-validation-alert" class="options-validation-alert hidden" role="alert">
+              <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <div class="alert-content">
+                <span class="alert-title">設定値のエラー</span>
+                <span class="alert-message" id="options-validation-msg">タイムアウト値は実行間隔以下に設定してください。</span>
+              </div>
+            </div>
+
+            <!-- Option Card 1: Interval -->
+            <div class="option-card">
+              <div class="option-card-header">
+                <div class="option-icon-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                </div>
+                <div class="option-title-group">
+                  <div class="option-title-row">
+                    <h3 class="option-title">Ping実行間隔</h3>
+                    <span class="option-badge" id="interval-display-badge">1 秒</span>
+                  </div>
+                  <p class="option-desc">各監視対象へPingを送信する周期を設定します（1秒 〜 10秒）。</p>
+                </div>
+              </div>
+
+              <div class="option-body">
+                <div class="option-input-row">
+                  <div class="option-slider-wrapper">
+                    <input type="range" id="input-interval-range" min="1" max="10" step="1" value="1" class="option-slider" />
+                    <div class="slider-ticks">
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 0 / 9);">1秒</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 1 / 9);">2秒</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 2 / 9);">3秒</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 4 / 9);">5秒</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 9 / 9);">10秒</span>
+                    </div>
+                  </div>
+                  <div class="option-number-box">
+                    <input type="number" id="input-interval-num" min="1" max="10" step="1" value="1" class="option-input-number" />
+                    <span class="unit-label">秒</span>
+                  </div>
+                </div>
+
+                <div class="preset-buttons">
+                  <span class="preset-label">クイック選択:</span>
+                  <button type="button" class="btn-preset active" data-for="interval" data-val="1">1秒 (標準)</button>
+                  <button type="button" class="btn-preset" data-for="interval" data-val="2">2秒</button>
+                  <button type="button" class="btn-preset" data-for="interval" data-val="3">3秒</button>
+                  <button type="button" class="btn-preset" data-for="interval" data-val="5">5秒</button>
+                  <button type="button" class="btn-preset" data-for="interval" data-val="10">10秒</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Option Card 2: Delay -->
+            <div class="option-card">
+              <div class="option-card-header">
+                <div class="option-icon-box delay">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="2" x2="12" y2="6"/>
+                    <line x1="12" y1="18" x2="12" y2="22"/>
+                    <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/>
+                    <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
+                    <line x1="2" y1="12" x2="6" y2="12"/>
+                    <line x1="18" y1="12" x2="22" y2="12"/>
+                    <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/>
+                    <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+                  </svg>
+                </div>
+                <div class="option-title-group">
+                  <div class="option-title-row">
+                    <h3 class="option-title">Ping実行ディレイ</h3>
+                    <span class="option-badge delay" id="delay-display-badge">50 ms</span>
+                  </div>
+                  <p class="option-desc">各監視対象へPingを送信する際の時間差（ディレイ）を設定します（0ms 〜 1000ms）。0msの場合は全対象へ同時に送信し、数値を設定するとリスト上から順に指定ミリ秒ずつずらして送信します。</p>
+                </div>
+              </div>
+
+              <div class="option-body">
+                <div class="option-input-row">
+                  <div class="option-slider-wrapper">
+                    <input type="range" id="input-delay-range" min="0" max="1000" step="10" value="50" class="option-slider" />
+                    <div class="slider-ticks">
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 0 / 1000);">0ms(同時)</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 50 / 1000);">50ms</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 200 / 1000);">200ms</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 500 / 1000);">500ms</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 1000 / 1000);">1000ms</span>
+                    </div>
+                  </div>
+                  <div class="option-number-box">
+                    <input type="number" id="input-delay-num" min="0" max="1000" step="10" value="50" class="option-input-number" />
+                    <span class="unit-label">ms</span>
+                  </div>
+                </div>
+
+                <div class="preset-buttons">
+                  <span class="preset-label">クイック選択:</span>
+                  <button type="button" class="btn-preset" data-for="delay" data-val="0">0ms (同時)</button>
+                  <button type="button" class="btn-preset active" data-for="delay" data-val="50">50ms (標準)</button>
+                  <button type="button" class="btn-preset" data-for="delay" data-val="100">100ms</button>
+                  <button type="button" class="btn-preset" data-for="delay" data-val="200">200ms</button>
+                  <button type="button" class="btn-preset" data-for="delay" data-val="500">500ms</button>
+                  <button type="button" class="btn-preset" data-for="delay" data-val="1000">1000ms</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Option Card 3: Packet Size -->
+            <div class="option-card">
+              <div class="option-card-header">
+                <div class="option-icon-box packetsize">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+                    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+                    <line x1="6" y1="6" x2="6.01" y2="6"/>
+                    <line x1="6" y1="18" x2="6.01" y2="18"/>
+                  </svg>
+                </div>
+                <div class="option-title-group">
+                  <div class="option-title-row">
+                    <h3 class="option-title">Pingパケットサイズ</h3>
+                    <span class="option-badge packetsize" id="packet-size-display-badge">32 バイト (送信: 60 バイト)</span>
+                  </div>
+                  <p class="option-desc">Ping送信時のペイロードサイズを設定します（32〜10000バイト）。指定パケットには<strong>分割不可（Don't Fragment: DF）</strong>フラグが付与されます。</p>
+                </div>
+              </div>
+
+              <div class="option-body">
+                <div class="option-input-row">
+                  <div class="option-slider-wrapper">
+                    <input type="range" id="input-packet-size-range" min="32" max="1472" step="1" value="32" class="option-slider" />
+                    <div class="slider-ticks">
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 0 / 1440);">32B<br><span class="tick-sub">(標準)</span></span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 224 / 1440);">256B</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 480 / 1440);">512B</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 992 / 1440);">1024B</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 1440 / 1440);">1472B<br><span class="tick-sub">(MTU1500)</span></span>
+                    </div>
+                  </div>
+                  <div class="option-number-box">
+                    <input type="number" id="input-packet-size-num" min="32" max="10000" step="1" value="32" class="option-input-number" />
+                    <span class="unit-label">B</span>
+                  </div>
+                </div>
+
+                <div class="actual-size-banner" id="actual-size-banner">
+                  <div class="actual-size-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="12" y1="16" x2="12" y2="12"/>
+                      <line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </svg>
+                  </div>
+                  <div class="actual-size-text">
+                    実際の送信データサイズ: <strong id="actual-size-total">60</strong> バイト
+                    <span class="actual-size-sub">(パケットサイズ <span id="actual-size-payload">32</span>B ＋ IP/ICMPヘッダ 28B / 分割不可)</span>
+                  </div>
+                </div>
+
+                <div class="preset-buttons">
+                  <span class="preset-label">クイック選択:</span>
+                  <button type="button" class="btn-preset active" data-for="packetsize" data-val="32">32B (標準)</button>
+                  <button type="button" class="btn-preset" data-for="packetsize" data-val="64">64B</button>
+                  <button type="button" class="btn-preset" data-for="packetsize" data-val="128">128B</button>
+                  <button type="button" class="btn-preset" data-for="packetsize" data-val="512">512B</button>
+                  <button type="button" class="btn-preset" data-for="packetsize" data-val="1472">1472B (MTU1500)</button>
+                </div>
+
+                <div class="option-sub-toggle-card">
+                  <div class="toggle-left">
+                    <label class="toggle-switch" for="input-auto-decrease-size">
+                      <input type="checkbox" id="input-auto-decrease-size" />
+                      <span class="toggle-slider"></span>
+                    </label>
+                    <div class="toggle-label-group">
+                      <label class="toggle-title" for="input-auto-decrease-size">NG発生時にOKになるまでパケットサイズを1ずつ自動縮小</label>
+                      <span class="toggle-desc">いずれかの監視対象でPingが3回連続NGとなった場合、全対象がPing OKになるまで送信ごとにパケットサイズを1バイトずつ減らして送信します（下限: 32B）。</span>
+                    </div>
+                  </div>
+                  <span class="toggle-status-badge" id="auto-decrease-status-badge">無効</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Option Card 4: Timeout -->
+            <div class="option-card">
+              <div class="option-card-header">
+                <div class="option-icon-box timeout">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                </div>
+                <div class="option-title-group">
+                  <div class="option-title-row">
+                    <h3 class="option-title">Pingタイムアウト値</h3>
+                    <span class="option-badge timeout" id="timeout-display-badge">1000 ms (1.0秒)</span>
+                  </div>
+                  <p class="option-desc">応答が返ってこない場合に不通（タイムアウト/NG）とみなす待ち時間を設定します（最小500ms 〜 最大5000ms）。</p>
+                </div>
+              </div>
+
+              <div class="option-body">
+                <div class="option-input-row">
+                  <div class="option-slider-wrapper">
+                    <input type="range" id="input-timeout-range" min="500" max="5000" step="50" value="1000" class="option-slider" />
+                    <div class="slider-ticks">
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 0 / 4500);">500ms</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 500 / 4500);">1000ms</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 2500 / 4500);">3000ms</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 4500 / 4500);">5000ms</span>
+                    </div>
+                  </div>
+                  <div class="option-number-box">
+                    <input type="number" id="input-timeout-num" min="500" max="5000" step="50" value="1000" class="option-input-number" />
+                    <span class="unit-label">ms</span>
+                  </div>
+                </div>
+
+                <div class="preset-buttons">
+                  <span class="preset-label">クイック選択:</span>
+                  <button type="button" class="btn-preset" data-for="timeout" data-val="500">500ms</button>
+                  <button type="button" class="btn-preset active" data-for="timeout" data-val="1000">1000ms (標準)</button>
+                  <button type="button" class="btn-preset" data-for="timeout" data-val="2000">2000ms</button>
+                  <button type="button" class="btn-preset" data-for="timeout" data-val="3000">3000ms</button>
+                  <button type="button" class="btn-preset" data-for="timeout" data-val="5000">5000ms</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Option Card 5: Traceroute Timeout -->
+            <div class="option-card">
+              <div class="option-card-header">
+                <div class="option-icon-box traceroute-timeout">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                  </svg>
+                </div>
+                <div class="option-title-group">
+                  <div class="option-title-row">
+                    <h3 class="option-title">Tracerouteタイムアウト時間</h3>
+                    <span class="option-badge traceroute-timeout" id="tr-timeout-display-badge">60 秒</span>
+                  </div>
+                  <p class="option-desc">右クリック個別TracerouteおよびTraceroute一括実行時の最大探索待ち時間を設定します（10秒 〜 300秒、デフォルト60秒）。</p>
+                </div>
+              </div>
+
+              <div class="option-body">
+                <div class="option-input-row">
+                  <div class="option-slider-wrapper">
+                    <input type="range" id="input-tr-timeout-range" min="10" max="300" step="5" value="60" class="option-slider" />
+                    <div class="slider-ticks">
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 0 / 290);">10秒</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 20 / 290);">30秒</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 50 / 290);">60秒<br><span class="tick-sub">(標準)</span></span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 110 / 290);">120秒</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 290 / 290);">300秒</span>
+                    </div>
+                  </div>
+                  <div class="option-number-box">
+                    <input type="number" id="input-tr-timeout-num" min="10" max="300" step="1" value="60" class="option-input-number" />
+                    <span class="unit-label">秒</span>
+                  </div>
+                </div>
+
+                <div class="preset-buttons">
+                  <span class="preset-label">クイック選択:</span>
+                  <button type="button" class="btn-preset" data-for="tr-timeout" data-val="10">10秒</button>
+                  <button type="button" class="btn-preset" data-for="tr-timeout" data-val="30">30秒</button>
+                  <button type="button" class="btn-preset active" data-for="tr-timeout" data-val="60">60秒 (標準)</button>
+                  <button type="button" class="btn-preset" data-for="tr-timeout" data-val="120">120秒</button>
+                  <button type="button" class="btn-preset" data-for="tr-timeout" data-val="300">300秒</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Option Card 6: Stream Count -->
+            <div class="option-card">
+              <div class="option-card-header">
+                <div class="option-icon-box stream">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="12" x2="21" y2="12"/>
+                    <polyline points="15 6 21 12 15 18"/>
+                    <circle cx="6" cy="12" r="2" fill="currentColor"/>
+                    <circle cx="12" cy="12" r="2" fill="currentColor"/>
+                  </svg>
+                </div>
+                <div class="option-title-group">
+                  <div class="option-title-row">
+                    <h3 class="option-title">応答履歴の表示件数</h3>
+                    <span class="option-badge stream" id="stream-display-badge">100 件 (直近)</span>
+                  </div>
+                  <p class="option-desc">Ping実行画面に表示・保持する直近の応答履歴（〇/×）の件数を設定します（最小50件 〜 最大1000件、デフォルト100件）。</p>
+                </div>
+              </div>
+
+              <div class="option-body">
+                <div class="option-input-row">
+                  <div class="option-slider-wrapper">
+                    <input type="range" id="input-stream-range" min="50" max="1000" step="10" value="100" class="option-slider" />
+                    <div class="slider-ticks">
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 0 / 950);">50件</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 50 / 950);">100件</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 150 / 950);">200件</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 450 / 950);">500件</span>
+                      <span class="tick" style="left: calc(9px + (100% - 18px) * 950 / 950);">1000件</span>
+                    </div>
+                  </div>
+                  <div class="option-number-box">
+                    <input type="number" id="input-stream-num" min="50" max="1000" step="10" value="100" class="option-input-number" />
+                    <span class="unit-label">件</span>
+                  </div>
+                </div>
+
+                <div class="preset-buttons">
+                  <span class="preset-label">クイック選択:</span>
+                  <button type="button" class="btn-preset" data-for="stream" data-val="50">50件</button>
+                  <button type="button" class="btn-preset active" data-for="stream" data-val="100">100件 (標準)</button>
+                  <button type="button" class="btn-preset" data-for="stream" data-val="200">200件</button>
+                  <button type="button" class="btn-preset" data-for="stream" data-val="500">500件</button>
+                  <button type="button" class="btn-preset" data-for="stream" data-val="1000">1000件</button>
+                </div>
+            <!-- Option Card 7: Save Directory (Traceroute & Ping Statistics) -->
+            <div class="option-card">
+              <div class="option-card-header">
+                <div class="option-icon-box savedir">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                  </svg>
+                </div>
+                <div class="option-title-group">
+                  <div class="option-title-row">
+                    <h3 class="option-title">結果保存先フォルダ</h3>
+                    <span class="option-badge savedir" id="savedir-display-badge">result (初期値)</span>
+                  </div>
+                  <p class="option-desc">Tracerouteの実行結果（個別・一括）やPingの統計結果（CSV）の保存先フォルダを指定します。フォルダが存在しない場合は保存時に自動作成されます。</p>
+                </div>
+              </div>
+
+              <div class="option-body">
+                <div class="option-path-row">
+                  <div class="option-path-input-wrapper">
+                    <input type="text" id="input-savedir-text" class="option-input-text" placeholder="result" value="result" spellcheck="false" />
+                  </div>
+                  <div class="option-path-btn-group">
+                    <button type="button" class="btn btn-secondary btn-path-action" id="btn-select-savedir" title="フォルダ参照ダイアログを開いて選択">
+                      <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                      </svg>
+                      <span>フォルダ参照</span>
+                    </button>
+                    <button type="button" class="btn btn-secondary btn-path-action" id="btn-open-savedir" title="エクスプローラーで保存先フォルダを開く">
+                      <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                        <polyline points="15 3 21 3 21 9"/>
+                        <line x1="10" y1="14" x2="21" y2="3"/>
+                      </svg>
+                      <span>フォルダを開く</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="preset-buttons">
+                  <span class="preset-label">クイック選択:</span>
+                  <button type="button" class="btn-preset active" data-for="savedir" data-val="result">初期値 (result)</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Option Card 8: Color Theme (Dark / Light) -->
+            <div class="option-card">
+              <div class="option-card-header">
+                <div class="option-icon-box theme">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"/>
+                    <line x1="12" y1="1" x2="12" y2="3"/>
+                    <line x1="12" y1="21" x2="12" y2="23"/>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                    <line x1="1" y1="12" x2="3" y2="12"/>
+                    <line x1="21" y1="12" x2="23" y2="12"/>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                  </svg>
+                </div>
+                <div class="option-title-group">
+                  <div class="option-title-row">
+                    <h3 class="option-title">カラーテーマ</h3>
+                    <span class="option-badge theme" id="theme-display-badge">ホワイトモード</span>
+                  </div>
+                  <p class="option-desc">画面の表示モード（ホワイトモード / ダークモード）を切り替えます。</p>
+                </div>
+              </div>
+
+              <div class="option-body">
+                <div class="theme-selector-grid">
+                  <button type="button" class="btn-theme-choice active" id="btn-theme-light" data-theme="light">
+                    <div class="theme-choice-icon light">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                      </svg>
+                    </div>
+                    <div class="theme-choice-info">
+                      <span class="theme-choice-title">ホワイトモード</span>
+                      <span class="theme-choice-desc">明るく清潔感のある白基調の配色</span>
+                    </div>
+                    <div class="theme-choice-radio">
+                      <span class="radio-dot"></span>
+                    </div>
+                  </button>
+
+                  <button type="button" class="btn-theme-choice" id="btn-theme-dark" data-theme="dark">
+                    <div class="theme-choice-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                      </svg>
+                    </div>
+                    <div class="theme-choice-info">
+                      <span class="theme-choice-title">ダークモード</span>
+                      <span class="theme-choice-desc">暗い背景で目に優しく視認性の高い配色</span>
+                    </div>
+                    <div class="theme-choice-radio">
+                      <span class="radio-dot"></span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Notes card -->
+            <div class="options-hint-card">
+              <div class="hint-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="16" x2="12" y2="12"/>
+                  <line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+              </div>
+              <div class="hint-text">
+                <span class="hint-title">💡 設定についての注意事項</span>
+                <p>設定は変更時に自動保存され、次回のPing開始およびTraceroute実行時から適用されます。Ping実行中に変更した場合は、一度Pingを停止して再開することで新しい間隔・タイムアウト値が反映されます。</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- View 4: Ping Statistics -->
+        <section id="view-stats" class="view-panel">
+          <div class="panel-header">
+            <div class="panel-header-left">
+              <h1 class="panel-title">Ping統計情報</h1>
+              <p class="panel-desc">Ping開始時からの送受信パケット数、ロス率、応答時間(RTT)の統計集計</p>
+            </div>
+            <div class="panel-header-actions">
+              <button id="btn-reset-stats" class="btn btn-secondary" title="統計データをリセット">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="1 4 1 10 7 10"/>
+                  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                </svg>
+                <span>統計リセット</span>
+              </button>
+              <button id="btn-save-stats" class="btn btn-primary" title="集計した統計結果をCSVファイルとして保存">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span>統計保存 (CSV)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Summary Metric Cards -->
+          <div class="stats-summary-grid">
+            <div class="summary-card">
+              <div class="summary-label">監視対象数</div>
+              <div class="summary-value" id="stats-total-targets">0</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">総送信パケット数</div>
+              <div class="summary-value" id="stats-total-sent">0</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">総成功パケット数</div>
+              <div class="summary-value color-success" id="stats-total-success">0</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-label">全体パケットロス率</div>
+              <div class="summary-value color-loss" id="stats-overall-loss">0.0%</div>
+            </div>
+          </div>
+
+          <!-- Statistics Table -->
+          <div class="stats-table-wrapper">
+            <table class="stats-table" id="stats-table">
+              <thead>
+                <tr>
+                  <th>状態</th>
+                  <th>日本語名称</th>
+                  <th>IPアドレス</th>
+                  <th>送信数</th>
+                  <th>成功数</th>
+                  <th>失敗数</th>
+                  <th>ロス率</th>
+                  <th>最新RTT</th>
+                  <th>平均RTT</th>
+                  <th>最小RTT</th>
+                  <th>最大RTT</th>
+                </tr>
+              </thead>
+              <tbody id="stats-tbody">
+                <!-- Dynamically filled stats rows -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <!-- Target Context Menu (Right Click on Ping Target) -->
+      <div id="context-menu" class="context-menu hidden" role="menu">
+        <div class="context-menu-header">
+          <span class="context-menu-name" id="context-menu-name">ターゲット名</span>
+          <span class="context-menu-ip" id="context-menu-ip">0.0.0.0</span>
+        </div>
+        <div class="context-menu-divider"></div>
+        <button type="button" class="context-menu-item" id="context-item-traceroute" role="menuitem">
+          <svg class="context-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+          <div class="context-item-labels">
+            <span class="context-item-title">Traceroute 実行</span>
+            <span class="context-item-sub">別ウインドウで経路を探索</span>
+          </div>
+        </button>
+        <button type="button" class="context-menu-item" id="context-item-copy-ip" role="menuitem">
+          <svg class="context-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          <div class="context-item-labels">
+            <span class="context-item-title">IPアドレスをコピー</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- Confirmation Modal Dialog -->
+      <div id="confirm-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
+        <div class="modal-card">
+          <div class="modal-header">
+            <div class="modal-icon-wrapper" id="confirm-modal-icon-wrapper">
+              <svg class="modal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <h3 class="modal-title" id="confirm-modal-title">確認</h3>
+          </div>
+          <div class="modal-body">
+            <p class="modal-message" id="confirm-modal-message">この操作を実行してもよろしいですか？</p>
+          </div>
+          <div class="modal-actions">
+            <button id="confirm-modal-btn-cancel" class="btn btn-secondary">キャンセル</button>
+            <button id="confirm-modal-btn-confirm" class="btn btn-primary danger-action">実行する</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toast Notification Container -->
+      <div id="toast-container" class="toast-container"></div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

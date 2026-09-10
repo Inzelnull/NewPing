@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ja" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Traceroute</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body class="traceroute-window-body">
+    <div class="traceroute-standalone-app">
+      <!-- Header -->
+      <header class="traceroute-standalone-header">
+        <div class="traceroute-header-title-box">
+          <div class="traceroute-icon-wrapper">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+          </div>
+          <div class="traceroute-title-group">
+            <div class="traceroute-title-row">
+              <h2 class="traceroute-modal-title" id="traceroute-modal-title">Traceroute 探索モニター</h2>
+              <span class="traceroute-status-pill running" id="traceroute-status-pill">
+                <span class="traceroute-status-dot"></span>
+                <span id="traceroute-status-text">実行中 (ICMP)</span>
+              </span>
+            </div>
+            <div class="traceroute-target-row">
+              <span class="traceroute-target-name" id="traceroute-target-name">ターゲット</span>
+              <span class="traceroute-target-ip" id="traceroute-target-ip">0.0.0.0</span>
+              <span class="traceroute-proto-badge">ICMP (Echo Request)</span>
+              <span class="traceroute-timeout-badge" id="traceroute-timeout-badge">タイムアウト: 60秒</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Metadata Grid -->
+      <div class="traceroute-meta-grid">
+        <div class="traceroute-meta-item">
+          <span class="meta-label">開始時刻</span>
+          <span class="meta-value" id="traceroute-start-time">--:--:--</span>
+        </div>
+        <div class="traceroute-meta-item">
+          <span class="meta-label">完了時刻</span>
+          <span class="meta-value" id="traceroute-end-time">実行中...</span>
+        </div>
+        <div class="traceroute-meta-item">
+          <span class="meta-label">経過 / 所要時間</span>
+          <span class="meta-value" id="traceroute-duration">0.0 秒</span>
+        </div>
+        <div class="traceroute-meta-item">
+          <span class="meta-label">検出ホップ数</span>
+          <span class="meta-value" id="traceroute-hop-count">0 ホップ</span>
+        </div>
+      </div>
+
+      <!-- Terminal Live Hop Stream Output Container -->
+      <div class="traceroute-terminal-wrapper standalone-flex">
+        <div class="traceroute-terminal-header">
+          <div class="terminal-dots">
+            <span class="terminal-dot red"></span>
+            <span class="terminal-dot yellow"></span>
+            <span class="terminal-dot green"></span>
+          </div>
+          <span class="terminal-title">ICMP Route Hop Inspection Console</span>
+          <span class="terminal-count" id="terminal-status-info">リアルタイム探索中...</span>
+        </div>
+        <pre class="traceroute-terminal-body" id="traceroute-terminal-body"><code id="traceroute-terminal-code"></code></pre>
+      </div>
+
+      <!-- Actions Footer -->
+      <footer class="traceroute-standalone-actions">
+        <div class="actions-left">
+          <button id="btn-stop-traceroute" class="btn btn-secondary danger-action">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="6" y="6" width="12" height="12"/>
+            </svg>
+            <span>中止</span>
+          </button>
+          <button id="btn-rerun-traceroute" class="btn btn-secondary" disabled>
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+            <span>再実行</span>
+          </button>
+        </div>
+        <div class="actions-right">
+          <button id="btn-copy-traceroute" class="btn btn-secondary">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            <span>ログコピー</span>
+          </button>
+          <button id="btn-save-traceroute" class="btn btn-primary" title="Traceroute実行結果をテキストファイルとして保存">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+              <polyline points="17 21 17 13 7 13 7 21"/>
+              <polyline points="7 3 7 8 15 8"/>
+            </svg>
+            <span>結果保存 (TXT)</span>
+          </button>
+          <button id="btn-close-window" class="btn btn-secondary">閉じる</button>
+        </div>
+      </footer>
+
+      <!-- Toast Container -->
+      <div id="toast-container" class="toast-container"></div>
+    </div>
+
+    <script type="module" src="/src/traceroute-window.ts"></script>
+  </body>
+</html>
