@@ -547,9 +547,8 @@ async fn open_traceroute_window(
         timeout_val
     );
     let url = format!("traceroute.html?{}", query);
-
     let title = format!("Traceroute - {} ({})", target_name, target_ip);
-    let _window = tauri::WebviewWindowBuilder::new(
+    let builder = tauri::WebviewWindowBuilder::new(
         &app_handle,
         &window_label,
         tauri::WebviewUrl::App(url.into()),
@@ -558,9 +557,58 @@ async fn open_traceroute_window(
     .inner_size(760.0, 600.0)
     .min_inner_size(500.0, 400.0)
     .resizable(true)
-    .center()
-    .build()
-    .map_err(|e| format!("Tracerouteウィンドウの作成に失敗しました: {}", e))?;
+    .visible(false);
+
+    // メインウィンドウと同じディスプレイ（モニター）の中央に表示位置を決定
+    let target_pos = if let Some(main_win) = app_handle.get_webview_window("main") {
+        let maybe_monitor = main_win.current_monitor().ok().flatten().or_else(|| {
+            if let Ok(main_pos) = main_win.outer_position() {
+                if let Ok(monitors) = app_handle.available_monitors() {
+                    monitors.into_iter().find(|m| {
+                        let mp = m.position();
+                        let ms = m.size();
+                        main_pos.x >= mp.x
+                            && main_pos.x < mp.x + ms.width as i32
+                            && main_pos.y >= mp.y
+                            && main_pos.y < mp.y + ms.height as i32
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        });
+
+        if let Some(monitor) = maybe_monitor {
+            let mon_pos = monitor.position();
+            let mon_sz = monitor.size();
+            let scale = monitor.scale_factor();
+            let win_w = (760.0 * scale) as i32;
+            let win_h = (600.0 * scale) as i32;
+            let px = mon_pos.x + (mon_sz.width as i32 - win_w) / 2;
+            let py = mon_pos.y + (mon_sz.height as i32 - win_h) / 2;
+            Some(tauri::PhysicalPosition::new(px, py))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let window = builder
+        .build()
+        .map_err(|e| format!("Tracerouteウィンドウの作成に失敗しました: {}", e))?;
+
+    if let Some(pos) = target_pos {
+        let _ = window.set_position(tauri::Position::Physical(pos));
+    } else {
+        let _ = window.center();
+    }
+
+    let _ = window.show();
+    let _ = window.unminimize();
+    let _ = window.set_focus();
 
     Ok(())
 }
