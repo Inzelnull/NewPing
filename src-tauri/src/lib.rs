@@ -626,6 +626,62 @@ fn close_window(window: tauri::Window, app_handle: tauri::AppHandle) -> Result<(
     window.close().map_err(|e| format!("ウィンドウを閉じるのに失敗しました: {}", e))
 }
 
+/// 実行ファイルを起動したフォルダ（フォアグラウンドウィンドウまたはカーソル位置）の座標を取得
+#[cfg(windows)]
+fn get_launch_point() -> Option<(i32, i32)> {
+    use windows_sys::Win32::Foundation::{HWND, POINT, RECT};
+    use windows_sys::Win32::UI::WindowsAndMessaging::{GetCursorPos, GetForegroundWindow, GetWindowRect};
+
+    unsafe {
+        // 1. まず現在のフォアグラウンドウィンドウ（実行ファイルを起動したエクスプローラー等）の中心座標を試行
+        let hwnd = GetForegroundWindow();
+        if hwnd != 0 as HWND {
+            let mut rect: RECT = std::mem::zeroed();
+            if GetWindowRect(hwnd, &mut rect) != 0 && rect.right > rect.left && rect.bottom > rect.top {
+                let cx = rect.left + (rect.right - rect.left) / 2;
+                let cy = rect.top + (rect.bottom - rect.top) / 2;
+                return Some((cx, cy));
+            }
+        }
+
+        // 2. マウスカーソル位置（ダブルクリックした場所）の座標を試行
+        let mut pt: POINT = std::mem::zeroed();
+        if GetCursorPos(&mut pt) != 0 {
+            return Some((pt.x, pt.y));
+        }
+    }
+    None
+}
+
+#[cfg(not(windows))]
+fn get_launch_point() -> Option<(i32, i32)> {
+    None
+}
+
+/// 起動元ディスプレイ（マルチディスプレイ環境でフォルダが存在するモニター）を特定
+fn find_launch_monitor(app: &tauri::AppHandle) -> Option<tauri::Monitor> {
+    let monitors = app.available_monitors().ok()?;
+    if monitors.is_empty() {
+        return None;
+    }
+
+    if let Some((x, y)) = get_launch_point() {
+        for monitor in &monitors {
+            let pos = monitor.position();
+            let size = monitor.size();
+            if x >= pos.x
+                && x < pos.x + size.width as i32
+                && y >= pos.y
+                && y < pos.y + size.height as i32
+            {
+                return Some(monitor.clone());
+            }
+        }
+    }
+
+    app.primary_monitor().ok().flatten().or_else(|| monitors.into_iter().next())
+}
+
 /// Tauri アプリケーション初期化・メインループ実行エントリ関数
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -670,7 +726,7 @@ pub fn run() {
                             let _ = window.emit("request-close", ());
                         } else {
                             for (_, win) in app.webview_windows() {
-                                let _ = win.close();
+                                 let _ = win.close();
                             }
                             app.exit(0);
                         }
@@ -707,8 +763,25 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // メインウィンドウのイベントハンドリング（最小化時はトレイ格納、閉じる時は確認ダイアログ要求）
+            // メインウィンドウのディスプレイ配置と初期表示
             if let Some(window) = app.get_webview_window("main") {
+                if let Some(monitor) = find_launch_monitor(app.handle()) {
+                    let mon_pos = monitor.position();
+                    let mon_sz = monitor.size();
+                    let scale = monitor.scale_factor();
+                    let win_w = (1000.0 * scale) as i32;
+                    let win_h = (680.0 * scale) as i32;
+                    let px = mon_pos.x + (mon_sz.width as i32 - win_w) / 2;
+                    let py = mon_pos.y + (mon_sz.height as i32 - win_h) / 2;
+                    let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition::new(px, py)));
+                } else {
+                    let _ = window.center();
+                }
+
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+
                 let w_clone = window.clone();
                 let app_handle_clone = app.handle().clone();
                 window.on_window_event(move |event| {
