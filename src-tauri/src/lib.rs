@@ -495,6 +495,10 @@ fn open_folder(path: Option<String>) -> Result<(), String> {
 /// アプリケーションを完全終了するコマンド
 #[tauri::command]
 fn exit_app(app_handle: tauri::AppHandle) {
+    // Traceroute等の他ウィンドウをすべて閉じてから終了
+    for (_, win) in app_handle.webview_windows() {
+        let _ = win.close();
+    }
     app_handle.exit(0);
 }
 
@@ -563,7 +567,14 @@ async fn open_traceroute_window(
 
 /// 指定ウィンドウを閉じるコマンド
 #[tauri::command]
-fn close_window(window: tauri::Window) -> Result<(), String> {
+fn close_window(window: tauri::Window, app_handle: tauri::AppHandle) -> Result<(), String> {
+    if window.label() == "main" {
+        for (label, win) in app_handle.webview_windows() {
+            if label != "main" {
+                let _ = win.close();
+            }
+        }
+    }
     window.close().map_err(|e| format!("ウィンドウを閉じるのに失敗しました: {}", e))
 }
 
@@ -610,6 +621,9 @@ pub fn run() {
                             let _ = window.set_focus();
                             let _ = window.emit("request-close", ());
                         } else {
+                            for (_, win) in app.webview_windows() {
+                                let _ = win.close();
+                            }
                             app.exit(0);
                         }
                     }
@@ -648,6 +662,7 @@ pub fn run() {
             // メインウィンドウのイベントハンドリング（最小化時はトレイ格納、閉じる時は確認ダイアログ要求）
             if let Some(window) = app.get_webview_window("main") {
                 let w_clone = window.clone();
+                let app_handle_clone = app.handle().clone();
                 window.on_window_event(move |event| {
                     match event {
                         tauri::WindowEvent::CloseRequested { api, .. } => {
@@ -657,6 +672,14 @@ pub fn run() {
                         tauri::WindowEvent::Resized(_) => {
                             if let Ok(true) = w_clone.is_minimized() {
                                 let _ = w_clone.hide();
+                            }
+                        }
+                        tauri::WindowEvent::Destroyed => {
+                            // メインウィンドウ終了時にTraceroute等の他ウィンドウを連動して自動クローズ
+                            for (label, win) in app_handle_clone.webview_windows() {
+                                if label != "main" {
+                                    let _ = win.close();
+                                }
                             }
                         }
                         _ => {}
