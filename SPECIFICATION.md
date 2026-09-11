@@ -60,23 +60,23 @@
 ## 3. システムアーキテクチャ
 
 ```mermaid
-graph TD
-    subgraph Frontend [WebView2 (Frontend)]
-        UI[UI View / Tabs]
-        State[App State & Stats Manager]
-        Storage[(LocalStorage)]
+flowchart TD
+    subgraph Frontend["WebView2 (Frontend)"]
+        UI["UI View / Tabs"]
+        State["App State & Stats Manager"]
+        Storage[("LocalStorage")]
     end
 
-    subgraph IPC [Tauri IPC Bridge]
-        Invokes[Invoke Commands]
-        Events[Event Listener: ping-result, request-close]
+    subgraph IPC["Tauri IPC Bridge"]
+        Invokes["Invoke Commands"]
+        Events["Event Listener: ping-result, request-close"]
     end
 
-    subgraph Backend [Rust Backend]
-        TauriCore[Tauri App State & Tray Handler]
-        PingLoop[Tokio Async Ping Worker Loop]
-        ICMP[Windows IcmpSendEcho API]
-        FileIO[Config & CSV File I/O]
+    subgraph Backend["Rust Backend"]
+        TauriCore["Tauri App State & Tray Handler"]
+        PingLoop["Tokio Async Ping Worker Loop"]
+        ICMP["Windows IcmpSendEcho API"]
+        FileIO["Config & CSV File I/O"]
     end
 
     UI -->|操作イベント| State
