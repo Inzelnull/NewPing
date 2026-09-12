@@ -94,13 +94,13 @@ pub fn ping_host(target_ip: &str, timeout_ms: u32, packet_size: u32) -> (bool, O
         let size = (packet_size.clamp(32, 10000)) as usize;
         let pattern = b"AntigravityNewPingPayloadData123";
         let mut send_data = Vec::with_capacity(size);
-        while send_data.len() < size {
-            let remain = size - send_data.len();
-            if remain >= pattern.len() {
-                send_data.extend_from_slice(pattern);
-            } else {
-                send_data.extend_from_slice(&pattern[..remain]);
-            }
+        let pattern_len = pattern.len();
+        while send_data.len() + pattern_len <= size {
+            send_data.extend_from_slice(pattern);
+        }
+        let remain = size - send_data.len();
+        if remain > 0 {
+            send_data.extend_from_slice(&pattern[..remain]);
         }
 
         // IPオプション設定: IP_FLAG_DF (0x02) により「パケット分割不可 (Don't Fragment)」を設定

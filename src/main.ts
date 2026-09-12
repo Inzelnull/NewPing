@@ -320,11 +320,16 @@ function switchTab(tabId: string) {
   }
 }
 
+let isScrollScheduled = false;
+
 /**
- * 応答履歴テーブルのスクロール位置を最新（右端）へ移動する関数
+ * 応答履歴テーブルのスクロール位置を最新（右端）へ移動する関数 (RAFでバッチ処理してレイアウトスラッシングを防止)
  */
 function scrollResultsToRight() {
+  if (isScrollScheduled) return;
+  isScrollScheduled = true;
   requestAnimationFrame(() => {
+    isScrollScheduled = false;
     if (resultsTableWrapper) {
       resultsTableWrapper.scrollLeft = resultsTableWrapper.scrollWidth;
     }
@@ -629,18 +634,11 @@ function handlePingResult(result: PingResult) {
     streamEl.appendChild(item);
 
     if (streamEl.children.length > maxStreamItems) {
-      while (streamEl.children.length > maxStreamItems) {
-        streamEl.removeChild(streamEl.firstChild!);
-      }
+      streamEl.removeChild(streamEl.firstElementChild!);
     }
 
     // 最新結果（右端）へ自動スクロール
-    resultsTableWrapper.scrollLeft = resultsTableWrapper.scrollWidth;
-    requestAnimationFrame(() => {
-      if (resultsTableWrapper) {
-        resultsTableWrapper.scrollLeft = resultsTableWrapper.scrollWidth;
-      }
-    });
+    scrollResultsToRight();
   }
 
   // NGアラートポップアップの追跡と状態更新
@@ -787,11 +785,25 @@ function updateTargetStats(result: PingResult) {
     stats.latestRtt = null;
   }
 
-  renderStatsSummary();
-  const statsPanel = document.getElementById("view-stats");
-  if (statsPanel?.classList.contains("active")) {
-    renderStatsTable();
-  }
+  scheduleStatsUpdate();
+}
+
+let isStatsRenderScheduled = false;
+
+/**
+ * 統計情報の描画更新を requestAnimationFrame でバッチ処理する関数
+ */
+function scheduleStatsUpdate() {
+  if (isStatsRenderScheduled) return;
+  isStatsRenderScheduled = true;
+  requestAnimationFrame(() => {
+    isStatsRenderScheduled = false;
+    renderStatsSummary();
+    const statsPanel = document.getElementById("view-stats");
+    if (statsPanel?.classList.contains("active")) {
+      renderStatsTable();
+    }
+  });
 }
 
 /**
