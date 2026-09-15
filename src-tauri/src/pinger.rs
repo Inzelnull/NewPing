@@ -12,7 +12,7 @@
 //! - タイムアウト値の指定
 //! - ホスト名/IPアドレスのIPv4名前解決
 
-use std::net::{IpAddr, ToSocketAddrs};
+use std::net::{IpAddr, Ipv4Addr, ToSocketAddrs};
 
 /// Ping対象ターゲット情報
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -44,39 +44,49 @@ pub struct PingResult {
     pub is_adjusting: bool,
 }
 
-/// Windowsネイティブの IcmpSendEcho API を使用してホストへPingを送信する
-/// 
-/// # 引数
-/// - `target_ip`: 送信先IPアドレス文字列（例: "8.8.8.8", "192.168.1.1"）
-/// - `timeout_ms`: タイムアウト待機時間（ミリ秒）
-/// - `packet_size`: 送信ペイロードのバイト数（32 〜 10000バイト）
-/// 
-/// # 戻り値
-/// - `(bool, Option<u32>)`: (疎通成否, RTTミリ秒)
-#[cfg(windows)]
-pub fn ping_host(target_ip: &str, timeout_ms: u32, packet_size: u32) -> (bool, Option<u32>) {
-    use std::ffi::c_void;
-    use std::mem::size_of;
-    use std::net::Ipv4Addr;
-    use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
-    use windows_sys::Win32::NetworkManagement::IpHelper::{
-        IcmpCloseHandle, IcmpCreateFile, IcmpSendEcho, ICMP_ECHO_REPLY, IP_OPTION_INFORMATION,
-    };
-
-    // IPv4アドレスへのパース、またはホスト名解決
-    let ipv4: Ipv4Addr = if let Ok(ip) = target_ip.trim().parse::<Ipv4Addr>() {
-        ip
-    } else if let Ok(mut addrs) = format!("{}:80", target_ip.trim()).to_socket_addrs() {
+/// ターゲット文字列（IPアドレスまたはホスト名）からIPv4アドレスを解決する関数
+pub fn resolve_target_ipv4(target_ip: &str) -> Option<Ipv4Addr> {
+    let trimmed = target_ip.trim();
+    if let Ok(ip) = trimmed.parse::<Ipv4Addr>() {
+        return Some(ip);
+    }
+    if let Ok(mut addrs) = format!("{}:80", trimmed).to_socket_addrs() {
         if let Some(addr) = addrs.find_map(|a| match a.ip() {
             IpAddr::V4(v4) => Some(v4),
             _ => None,
         }) {
-            addr
-        } else {
-            return (false, None);
+            return Some(addr);
         }
-    } else {
-        return (false, None);
+    }
+    None
+}
+
+/// ペイロードバッファを生成するヘルパー関数（32〜10000バイト）
+#[inline]
+fn generate_payload(size: usize) -> Vec<u8> {
+    let clamped_size = size.clamp(32, 10000);
+    let mut send_data = vec![0u8; clamped_size];
+    let pattern = b"AntigravityNewPingPayloadData123";
+    let pattern_len = pattern.len();
+    let mut offset = 0;
+    while offset + pattern_len <= clamped_size {
+        send_data[offset..offset + pattern_len].copy_from_slice(pattern);
+        offset += pattern_len;
+    }
+    if offset < clamped_size {
+        send_data[offset..].copy_from_slice(&pattern[..clamped_size - offset]);
+    }
+    send_data
+}
+
+/// 解決済みIPv4アドレスに対してWindowsネイティブの IcmpSendEcho API でPingを送信する
+#[cfg(windows)]
+pub fn ping_resolved_ip(ipv4: Ipv4Addr, timeout_ms: u32, packet_size: u32) -> (bool, Option<u32>) {
+    use std::ffi::c_void;
+    use std::mem::size_of;
+    use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
+    use windows_sys::Win32::NetworkManagement::IpHelper::{
+        IcmpCloseHandle, IcmpCreateFile, IcmpSendEcho, ICMP_ECHO_REPLY, IP_OPTION_INFORMATION,
     };
 
     unsafe {
@@ -90,18 +100,8 @@ pub fn ping_host(target_ip: &str, timeout_ms: u32, packet_size: u32) -> (bool, O
         // ネットワークバイトオーダーのIPv4アドレスを32ビット値に変換
         let ip_val = u32::from_ne_bytes(octets);
 
-        // 要求されたパケットサイズ（32〜10000バイト）のペイロードバッファを生成
-        let size = (packet_size.clamp(32, 10000)) as usize;
-        let pattern = b"AntigravityNewPingPayloadData123";
-        let mut send_data = Vec::with_capacity(size);
-        let pattern_len = pattern.len();
-        while send_data.len() + pattern_len <= size {
-            send_data.extend_from_slice(pattern);
-        }
-        let remain = size - send_data.len();
-        if remain > 0 {
-            send_data.extend_from_slice(&pattern[..remain]);
-        }
+        // 要求されたパケットサイズのペイロードバッファを生成
+        let send_data = generate_payload(packet_size as usize);
 
         // IPオプション設定: IP_FLAG_DF (0x02) により「パケット分割不可 (Don't Fragment)」を設定
         let ip_options = IP_OPTION_INFORMATION {
@@ -146,13 +146,29 @@ pub fn ping_host(target_ip: &str, timeout_ms: u32, packet_size: u32) -> (bool, O
 
 /// 非Windows環境向けのモック実装（テスト・ビルド用）
 #[cfg(not(windows))]
-pub fn ping_host(_target_ip: &str, _timeout_ms: u32, _packet_size: u32) -> (bool, Option<u32>) {
+pub fn ping_resolved_ip(_ipv4: Ipv4Addr, _timeout_ms: u32, _packet_size: u32) -> (bool, Option<u32>) {
     (true, Some(10))
+}
+
+/// IP文字列またはホスト名を受け取ってPingを送信するエントリーポイント（後方互換性および単体呼び出し用）
+#[allow(dead_code)]
+pub fn ping_host(target_ip: &str, timeout_ms: u32, packet_size: u32) -> (bool, Option<u32>) {
+    if let Some(ipv4) = resolve_target_ipv4(target_ip) {
+        ping_resolved_ip(ipv4, timeout_ms, packet_size)
+    } else {
+        (false, None)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_resolve_target_ipv4() {
+        assert_eq!(resolve_target_ipv4("127.0.0.1"), Some(Ipv4Addr::new(127, 0, 0, 1)));
+        assert_eq!(resolve_target_ipv4("999.999.999.999"), None);
+    }
 
     #[test]
     fn test_ping_localhost_default_size() {

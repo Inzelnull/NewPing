@@ -20,11 +20,12 @@
    - 6.1 [設定ファイル仕様 (ping-list.config)](#61-設定ファイル仕様-ping-listconfig)
    - 6.2 [統計データ構造とCSVエクスポート仕様](#62-統計データ構造とcsvエクスポート仕様)
    - 6.3 [LocalStorage 保存キー](#63-localstorage-保存キー)
-7. [バックエンド (Rust/Tauri) 仕様](#7-バックエンド-rusttauri-仕様)
-   - 7.1 [ICMP Ping 実装仕様](#71-icmp-ping-実装仕様)
-   - 7.2 [Traceroute & Win32 ネイティブ文字コードデコード仕様](#72-traceroute--win32-ネイティブ文字コードデコード仕様-tracerouters)
-   - 7.3 [IPCコマンド (Invoke API) 一覧](#73-ipcコマンド-invoke-api-一覧)
-   - 7.4 [イベント通知仕様](#74-イベント通知仕様)
+7. [バックエンド & レンダリング仕様](#7-バックエンド-rusttauri-仕様)
+   - 7.1 [ICMP Ping 実装仕様](#71-icmp-ping-実装仕様-pinger)
+   - 7.2 [高速レンダリング & DOMキャッシュ仕様](#72-高速レンダリング--domキャッシュ仕様-maints)
+   - 7.3 [Traceroute & Win32 ネイティブ文字コードデコード仕様](#73-traceroute--win32-ネイティブ文字コードデコード仕様-tracerouters)
+   - 7.4 [IPCコマンド (Invoke API) 一覧](#74-ipcコマンド-invoke-api-一覧)
+   - 7.5 [イベント通知仕様](#75-イベント通知仕様)
 8. [ウィンドウおよびトレイ動作仕様](#8-ウィンドウおよびトレイ動作仕様)
 
 ---
@@ -285,19 +286,24 @@ flowchart TD
 ### 7.1 ICMP Ping 実装仕様 (`pinger.rs`)
 - **Windows環境 (`cfg(windows)`)**:
   - `windows_sys::Win32::NetworkManagement::IpHelper` の `IcmpCreateFile`, `IcmpSendEcho`, `IcmpCloseHandle` を使用。
-  - IPv4アドレスおよびホスト名解決に対応。
-  - 送信ペイロード: 指定サイズ（32〜10000バイト）のASCIIパターン列を動的生成。
+  - **事前DNS/IPv4名前解決キャッシュ**: Pingループ実行前に全ターゲットのIPv4アドレスを事前解決・キャッシュし、毎秒のループ内での不要なDNSルックアップによるスレッド遅延を完全排除。未解決ホストはオンデマンドでバックグラウンド再解決。
+  - **高速ペイロード生成**: 指定サイズ（32〜10000バイト）のASCIIパターン列を安全かつゼロコピーに近い効率で生成（`generate_payload`）。
   - `IP_OPTION_INFORMATION` の `Flags` に `0x02` (`IP_FLAG_DF`: Don't Fragment) を設定し、パケット分割不可フラグを付与。
   - レスポンスの `Status == 0` (IP_SUCCESS) の場合に `RoundTripTime` を取得し成功と判定。
 - **その他OS (`cfg(not(windows))`)**:
   - 開発/クロスプラットフォーム用モックハンドラ。
 
-### 7.2 Traceroute & Win32 ネイティブ文字コードデコード仕様 (`traceroute.rs`)
+### 7.2 高速レンダリング & DOMキャッシュ仕様 (`main.ts`)
+- **DOM要素参照キャッシュ**: 監視モニターのテーブル行（ストリーム要素、ステータスバッジ、回数表示）を `streamElMap`, `statusElMap`, `countElMap` でメモリキャッシュし、Ping結果受信時の `getElementById` / `querySelector` コストをゼロ化。
+- **ゼロフリッカー差分更新**: Ping結果受信時は該当する行のDOMプロパティのみを差分更新し、テーブル全体の再構築を行わないことでCPU負荷および画面の点滅（フリッカー）を完全防止。
+- **統計テーブル差分更新**: 統計画面においても既存の行DOMを再利用し、テキストコンテンツのみを差分反映。
+
+### 7.3 Traceroute & Win32 ネイティブ文字コードデコード仕様 (`traceroute.rs`)
 - **Traceroute実行**: Windows標準 `tracert -d -h 30 -w 2000 <IP>` をバックグラウンド非同期プロセス（`tokio::process::Command`）として起動し、標準出力をリアルタイムに行単位ストリーム受信。
 - **文字コードデコード**: 外部ライブラリを一切使わず、Microsoft公式の Win32 API `MultiByteToWideChar`（`CP_OEMCP`）を用いて、日本語Windowsコンソールの Shift-JIS / CP932 出力を直接 UTF-16 バッファへ変換し、Rustの UTF-8 文字列として安全・高速に復元。
 - **並行一括実行**: 登録された全監視対象に対して非同期タスクを並行生成し、完了進捗イベント（`batch-traceroute-progress`）を配信。全件完了時に統合テキストレポートファイルを生成して指定保存先に自動保存。
 
-### 7.3 IPCコマンド (Invoke API) 一覧
+### 7.4 IPCコマンド (Invoke API) 一覧
 
 | コマンド名 | 引数 | 戻り値 | 概要 |
 | :--- | :--- | :--- | :--- |
@@ -322,7 +328,7 @@ flowchart TD
 | `stop_traceroute` | `target_id: String` | `Result<(), String>` | 個別Tracerouteプロセスを強制終了 |
 | `exit_app` | なし | `()` | アプリケーションを正常終了 |
 
-### 7.4 イベント通知仕様
+### 7.5 イベント通知仕様
 
 | イベント名 | 送信元 | ペイロード | 概要 |
 | :--- | :--- | :--- | :--- |

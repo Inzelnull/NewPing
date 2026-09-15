@@ -434,7 +434,7 @@ input, textarea, button {
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-md);
   overflow: hidden;
-  min-height: 0;
+  min-height: 160px;
 }
 
 .results-table-header {

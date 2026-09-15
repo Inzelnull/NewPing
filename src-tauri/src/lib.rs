@@ -15,8 +15,9 @@
 mod pinger;
 mod traceroute;
 
-use pinger::{ping_host, PingResult, PingTarget};
+use pinger::{ping_resolved_ip, resolve_target_ipv4, PingResult, PingTarget};
 use std::fs;
+use std::net::Ipv4Addr;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -86,7 +87,20 @@ fn get_config_path() -> PathBuf {
     if path.exists() {
         return path;
     }
-    PathBuf::from(CONFIG_FILE_NAME)
+    if let Ok(curr_dir) = std::env::current_dir() {
+        let p = curr_dir.join(CONFIG_FILE_NAME);
+        if p.exists() {
+            return p;
+        }
+    }
+    if let Ok(mut exe_dir) = std::env::current_exe() {
+        exe_dir.pop();
+        let p = exe_dir.join(CONFIG_FILE_NAME);
+        if p.exists() {
+            return p;
+        }
+    }
+    path
 }
 
 /// ping-list.config の内容を読み込む
@@ -120,7 +134,20 @@ fn get_parameters_config_path() -> PathBuf {
     if path.exists() {
         return path;
     }
-    PathBuf::from(PARAMETERS_CONFIG_FILE_NAME)
+    if let Ok(curr_dir) = std::env::current_dir() {
+        let p = curr_dir.join(PARAMETERS_CONFIG_FILE_NAME);
+        if p.exists() {
+            return p;
+        }
+    }
+    if let Ok(mut exe_dir) = std::env::current_exe() {
+        exe_dir.pop();
+        let p = exe_dir.join(PARAMETERS_CONFIG_FILE_NAME);
+        if p.exists() {
+            return p;
+        }
+    }
+    path
 }
 
 /// ping-parameters.conf の内容を読み込む
@@ -287,6 +314,12 @@ async fn start_ping(
         // ターゲットごとの連続NG回数カウント
         let mut consecutive_ng_counts: Vec<u32> = vec![0; targets.len()];
 
+        // 事前に全ターゲットのIPv4アドレスを解決（DNS同期ルックアップをPingループ外で事前実行・キャッシュ）
+        let mut resolved_ips: Vec<Option<Ipv4Addr>> = targets
+            .iter()
+            .map(|t| resolve_target_ipv4(&t.ip))
+            .collect();
+
         loop {
             tokio::select! {
                 _ = stop_rx.changed() => {
@@ -302,11 +335,20 @@ async fn start_ping(
                     // 全監視対象へPingを非同期並行送信
                     for (idx, target) in targets.iter().enumerate() {
                         let t_id = target.id.clone();
-                        let t_ip = target.ip.clone();
                         let ip_for_res = target.ip.clone();
                         let app_h = app_handle.clone();
                         let mut task_stop_rx = stop_rx.clone();
                         let target_delay = if delay_val > 0 { idx as u64 * delay_val } else { 0 };
+
+                        // 未解決の場合は再解決を試行
+                        let target_ipv4 = if let Some(ipv4) = resolved_ips[idx] {
+                            Some(ipv4)
+                        } else if let Some(ipv4) = resolve_target_ipv4(&target.ip) {
+                            resolved_ips[idx] = Some(ipv4);
+                            Some(ipv4)
+                        } else {
+                            None
+                        };
 
                         let handle = tokio::spawn(async move {
                             // 設定されたディレイ（時間差）だけ待機
@@ -325,12 +367,16 @@ async fn start_ping(
                                 return (idx, false);
                             }
 
-                            // ブロッキングICMP API呼び出しをワーカースレッドで実行
-                            let (success, rtt_ms) = tokio::task::spawn_blocking(move || {
-                                ping_host(&t_ip, timeout_val, round_packet_size)
-                            })
-                            .await
-                            .unwrap_or((false, None));
+                            // ブロッキングICMP API呼び出しをワーカースレッドで実行（解決済みIPv4で直接送信）
+                            let (success, rtt_ms) = if let Some(ipv4) = target_ipv4 {
+                                tokio::task::spawn_blocking(move || {
+                                    ping_resolved_ip(ipv4, timeout_val, round_packet_size)
+                                })
+                                .await
+                                .unwrap_or((false, None))
+                            } else {
+                                (false, None)
+                            };
 
                             if !*task_stop_rx.borrow() {
                                 let now_ts = SystemTime::now()

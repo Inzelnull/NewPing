@@ -93,6 +93,7 @@ let pingPacketSize: number = 32;
 let autoDecreasePacketSize: boolean = false;
 let currentRuntimePacketSize: number = 32;
 let hasReachedAllOk: boolean = false;
+const successfulTargetIds = new Set<string>();
 let maxStreamItems: number = 100; // 応答履歴の表示件数 (50〜1000, 初期値: 100)
 let tracerouteTimeoutSec: number = 60; // Tracerouteタイムアウト秒数 (10〜300, 初期値: 60)
 let pingSaveDir: string = "result"; // 結果保存先フォルダ (初期値: result)
@@ -102,6 +103,11 @@ let isBatchTracerouteRunning = false;
 const statsMap = new Map<string, TargetStats>();
 /** 現在NG状態となっているターゲット一覧マップ（不通検知ポップアップ用） */
 const activeNgTargets = new Map<string, { id: string; name: string; ip: string }>();
+
+/** 高速DOM参照用キャッシュMap */
+const streamElMap = new Map<string, HTMLElement>();
+const statusElMap = new Map<string, HTMLElement>();
+const countElMap = new Map<string, HTMLElement>();
 
 // ------------------------------------------------------------------------------
 // DOM要素の取得
@@ -316,6 +322,9 @@ function switchTab(tabId: string) {
   if (tabId === "stats") {
     renderStatsTable();
   } else if (tabId === "results") {
+    if (resultsTbody.children.length !== currentTargets.length && !isRunning) {
+      syncResultsTableStructure();
+    }
     scrollResultsToRight();
   }
 }
@@ -355,37 +364,41 @@ btnGotoSettings.addEventListener("click", () => {
 /**
  * テキストエリアの文字列からPing監視対象リスト（IPと名称）をパースする関数
  * フォーマット: "IPアドレス 日本語名称" (空白またはタブ区切り)
- * # や // で始まる行はコメント行としてスキップ
+ * # や //, ; で始まる行はコメント行としてスキップ
  */
 function parseConfigText(text: string): PingTarget[] {
-  const lines = text.split(/\r?\n/);
+  if (!text) return [];
+  // \r\n, \r, \n のすべての改行コードに対応して行分割
+  const rawLines = text.split(/\r\n|\r|\n/);
   const targets: PingTarget[] = [];
   let index = 0;
 
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#") || line.startsWith("//")) {
+  for (const rawLine of rawLines) {
+    const trimmed = rawLine.trim();
+    if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("//") || trimmed.startsWith(";")) {
       continue;
     }
 
-    // 最初の空白でIPアドレスと名称を分割
-    const match = line.match(/^(\S+)\s+(.+)$/);
-    let ip = "";
-    let name = "";
+    // 1行に複数ターゲットが含まれる場合（カンマやセミコロン区切り）
+    const lineSegments = (trimmed.includes(",") || trimmed.includes(";"))
+      ? trimmed.split(/[,;]+/).map((s) => s.trim()).filter(Boolean)
+      : [trimmed];
 
-    if (match) {
-      ip = match[1].trim();
-      name = match[2].trim();
-    } else {
-      ip = line;
-      name = line;
+    for (const segment of lineSegments) {
+      // 最初の空白（半角スペース・タブ・全角スペース）でIP/ホストと名称を分割
+      const match = segment.match(/^(\S+)(?:[ \t\u3000]+(.*))?$/);
+      if (match) {
+        const ip = match[1].trim();
+        const name = match[2] ? match[2].trim() : ip;
+        if (ip) {
+          targets.push({
+            id: `target_${index++}_${ip.replace(/[^a-zA-Z0-9_-]/g, "_")}`,
+            ip,
+            name: name || ip,
+          });
+        }
+      }
     }
-
-    targets.push({
-      id: `target-${index++}-${ip}`,
-      ip,
-      name,
-    });
   }
 
   return targets;
@@ -504,6 +517,10 @@ btnReloadConfig.addEventListener("click", async () => {
  * 監視対象リストに基づいて結果画面のテーブル行（tr）を初期化・同期する関数
  */
 function syncResultsTableStructure() {
+  streamElMap.clear();
+  statusElMap.clear();
+  countElMap.clear();
+
   if (currentTargets.length === 0) {
     resultsEmpty.classList.remove("hidden");
     resultsContainer.style.display = "none";
@@ -542,6 +559,14 @@ function syncResultsTableStructure() {
       </td>
     `;
     resultsTbody.appendChild(row);
+
+    // DOM要素の参照をキャッシュMapに登録
+    const streamEl = row.querySelector(`#stream-${t.id}`) as HTMLElement;
+    const statusEl = row.querySelector(`#status-${t.id}`) as HTMLElement;
+    const countEl = row.querySelector(`#count-${t.id}`) as HTMLElement;
+    if (streamEl) streamElMap.set(t.id, streamEl);
+    if (statusEl) statusElMap.set(t.id, statusEl);
+    if (countEl) countElMap.set(t.id, countEl);
   });
 }
 
@@ -566,13 +591,10 @@ resultsTableWrapper.addEventListener(
 function handlePingResult(result: PingResult) {
   updateTargetStats(result);
 
-  // 全監視対象が1度でも応答成功したか判定（サイズ自動縮小の調整完了判定に使用）
+  // 全監視対象が1度でも応答成功したか判定（Setによる高速 O(1) 判定）
   if (result.success && !hasReachedAllOk) {
-    const allOk = currentTargets.length > 0 && currentTargets.every((t) => {
-      const s = statsMap.get(t.id);
-      return s && s.latestSuccess === true;
-    });
-    if (allOk) {
+    successfulTargetIds.add(result.id);
+    if (currentTargets.length > 0 && successfulTargetIds.size >= currentTargets.length) {
       hasReachedAllOk = true;
       updateResultsPanelDesc();
     }
@@ -582,9 +604,52 @@ function handlePingResult(result: PingResult) {
     ? result.is_adjusting
     : (autoDecreasePacketSize && !hasReachedAllOk);
 
-  const streamEl = document.getElementById(`stream-${result.id}`);
-  const statusEl = document.getElementById(`status-${result.id}`);
-  const countEl = document.getElementById(`count-${result.id}`);
+  // キャッシュMapから高速取得（なければフォールバック検索）
+  let streamEl = streamElMap.get(result.id) ?? document.getElementById(`stream-${result.id}`);
+  let statusEl = statusElMap.get(result.id) ?? document.getElementById(`status-${result.id}`);
+  let countEl = countElMap.get(result.id) ?? document.getElementById(`count-${result.id}`);
+
+  // テーブル行が未生成の場合は、該当行のみを動的に追加（テーブル全体の破棄・全行再初期化は絶対に行わない）
+  if (!streamEl) {
+    const target = currentTargets.find((t) => t.id === result.id);
+    const targetName = target ? target.name : result.ip;
+    const targetIp = result.ip;
+
+    const row = document.createElement("tr");
+    row.id = `row-${result.id}`;
+    row.setAttribute("data-target-id", result.id);
+    row.setAttribute("data-target-name", targetName);
+    row.setAttribute("data-target-ip", targetIp);
+    row.innerHTML = `
+      <td class="col-target">
+        <div class="target-info">
+          <span class="target-name">${escapeHtml(targetName)}</span>
+          <span class="target-ip">${escapeHtml(targetIp)}</span>
+        </div>
+      </td>
+      <td class="col-status">
+        <span class="badge-status idle" id="status-${result.id}">監視中</span>
+      </td>
+      <td class="col-count" id="count-${result.id}">
+        0
+      </td>
+      <td class="col-stream">
+        <div class="stream-container" id="stream-${result.id}">
+        </div>
+      </td>
+    `;
+    resultsTbody.appendChild(row);
+    resultsEmpty.classList.add("hidden");
+    resultsContainer.style.display = "flex";
+
+    streamEl = row.querySelector(`#stream-${result.id}`) as HTMLElement;
+    statusEl = row.querySelector(`#status-${result.id}`) as HTMLElement;
+    countEl = row.querySelector(`#count-${result.id}`) as HTMLElement;
+
+    if (streamEl) streamElMap.set(result.id, streamEl);
+    if (statusEl) statusElMap.set(result.id, statusEl);
+    if (countEl) countElMap.set(result.id, countEl);
+  }
 
   // 送信回数バッジの更新
   if (countEl) {
@@ -831,43 +896,96 @@ function renderStatsSummary() {
 
 /**
  * 統計画面のテーブル（各ターゲットごとの送信数・成功・失敗・ロス率・平均/最小/最大RTT）を描画する関数
+ * インプレース差分更新により、DOMノード破棄・再生成を回避してCPU負荷を削減しチラつきを防止
  */
 function renderStatsTable() {
-  statsTbody.innerHTML = "";
   if (statsMap.size === 0) {
     statsTbody.innerHTML = '<tr><td colspan="11" style="text-align:center; color:var(--text-muted); padding:30px;">統計データはありません</td></tr>';
     return;
   }
 
-  statsMap.forEach((s) => {
-    const row = document.createElement("tr");
+  const statsList = Array.from(statsMap.values());
+  const existingRows = Array.from(statsTbody.children) as HTMLTableRowElement[];
+
+  // 既存テーブルの行数やターゲットID順が一致するか検証
+  const isMatch =
+    existingRows.length === statsList.length &&
+    existingRows.every((row, i) => row.getAttribute("data-stat-id") === statsList[i].id);
+
+  if (!isMatch) {
+    // 構造が変わった場合（初回・ターゲット変更時など）は行構造を再生成
+    statsTbody.innerHTML = "";
+    statsList.forEach((s) => {
+      const row = document.createElement("tr");
+      row.setAttribute("data-stat-id", s.id);
+      row.innerHTML = `
+        <td><span class="badge-status idle">待機</span></td>
+        <td class="cell-name">${escapeHtml(s.name)}</td>
+        <td>${escapeHtml(s.ip)}</td>
+        <td>0</td>
+        <td style="color: var(--ping-ok-text); font-weight:700;">0</td>
+        <td style="color: var(--ping-ng-text); font-weight:700;">0</td>
+        <td style="font-weight:700;">0.0%</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+        <td>-</td>
+      `;
+      statsTbody.appendChild(row);
+    });
+  }
+
+  // インプレースで各セルの値を差分更新
+  const rows = statsTbody.children as HTMLCollectionOf<HTMLTableRowElement>;
+  statsList.forEach((s, idx) => {
+    const row = rows[idx];
+    if (!row) return;
+
     const lossRate = s.sent > 0 ? ((s.failed / s.sent) * 100).toFixed(1) : "0.0";
     const avgRtt = s.success > 0 ? Math.round(s.rttSum / s.success) : "-";
     const minRtt = s.minRtt !== null ? `${s.minRtt} ms` : "-";
     const maxRtt = s.maxRtt !== null ? `${s.maxRtt} ms` : "-";
     const latestRtt = s.latestRtt !== null ? `${s.latestRtt} ms` : (s.sent > 0 ? "NG" : "-");
 
-    let statusBadge = '<span class="badge-status idle">待機</span>';
-    if (s.latestSuccess === true) {
-      statusBadge = '<span class="badge-status ok">正常</span>';
-    } else if (s.latestSuccess === false) {
-      statusBadge = '<span class="badge-status ng">不通</span>';
+    const cells = row.cells;
+    if (cells.length < 11) return;
+
+    // 0: ステータスバッジ
+    const badge = cells[0].firstElementChild as HTMLElement;
+    if (badge) {
+      if (s.latestSuccess === true) {
+        if (badge.className !== "badge-status ok") badge.className = "badge-status ok";
+        if (badge.textContent !== "正常") badge.textContent = "正常";
+      } else if (s.latestSuccess === false) {
+        if (badge.className !== "badge-status ng") badge.className = "badge-status ng";
+        if (badge.textContent !== "不通") badge.textContent = "不通";
+      } else {
+        if (badge.className !== "badge-status idle") badge.className = "badge-status idle";
+        if (badge.textContent !== "待機") badge.textContent = "待機";
+      }
     }
 
-    row.innerHTML = `
-      <td>${statusBadge}</td>
-      <td class="cell-name">${escapeHtml(s.name)}</td>
-      <td>${escapeHtml(s.ip)}</td>
-      <td>${s.sent}</td>
-      <td style="color: var(--ping-ok-text); font-weight:700;">${s.success}</td>
-      <td style="color: var(--ping-ng-text); font-weight:700;">${s.failed}</td>
-      <td style="font-weight:700; ${parseFloat(lossRate) > 0 ? 'color: var(--ping-ng-text);' : ''}">${lossRate}%</td>
-      <td>${latestRtt}</td>
-      <td>${avgRtt !== "-" ? avgRtt + " ms" : "-"}</td>
-      <td>${minRtt}</td>
-      <td>${maxRtt}</td>
-    `;
-    statsTbody.appendChild(row);
+    // 1: 日本語名称
+    if (cells[1].textContent !== s.name) cells[1].textContent = s.name;
+    // 2: IPアドレス
+    if (cells[2].textContent !== s.ip) cells[2].textContent = s.ip;
+    // 3: 送信数
+    cells[3].textContent = s.sent.toString();
+    // 4: 成功数
+    cells[4].textContent = s.success.toString();
+    // 5: 失敗数
+    cells[5].textContent = s.failed.toString();
+    // 6: ロス率
+    cells[6].textContent = `${lossRate}%`;
+    cells[6].style.color = parseFloat(lossRate) > 0 ? "var(--ping-ng-text)" : "";
+    // 7: 最新RTT
+    cells[7].textContent = latestRtt;
+    // 8: 平均RTT
+    cells[8].textContent = avgRtt !== "-" ? `${avgRtt} ms` : "-";
+    // 9: 最小RTT
+    cells[9].textContent = minRtt;
+    // 10: 最大RTT
+    cells[10].textContent = maxRtt;
   });
 }
 
@@ -1230,7 +1348,7 @@ interface PingParameters {
  */
 function parseParametersConfig(content: string): PingParameters {
   const params: PingParameters = {};
-  const lines = content.split(/\r?\n/);
+  const lines = content.split(/\r\n|\r|\n/);
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith(";")) {
@@ -2014,10 +2132,16 @@ async function togglePing() {
     pingPacketSize = packetSizeVal;
     currentRuntimePacketSize = pingPacketSize;
     hasReachedAllOk = false;
+    successfulTargetIds.clear();
     pingTimeoutMs = timeoutVal;
     maxStreamItems = streamVal;
     if (inputAutoDecreaseSize) {
       autoDecreasePacketSize = inputAutoDecreaseSize.checked;
+    }
+
+    // Ping開始前に監視テーブル行構造を確実に同期
+    if (resultsTbody.children.length !== currentTargets.length) {
+      syncResultsTableStructure();
     }
 
     try {
