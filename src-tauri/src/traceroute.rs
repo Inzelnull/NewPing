@@ -14,9 +14,8 @@
 //! - Shift_JIS / UTF-8 の文字コード自動判別デコード
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use parking_lot::Mutex;
 use tauri::Emitter;
 use tokio::io::AsyncBufReadExt;
 use tokio::process::Command;
@@ -101,14 +100,14 @@ impl TracerouteManager {
 
     /// 指定ターゲットIDの個別Tracerouteを中止
     pub fn cancel(&self, target_id: &str) {
-        if let Some(tx) = self.tasks.lock().remove(target_id) {
+        if let Some(tx) = self.tasks.lock().unwrap().remove(target_id) {
             let _ = tx.send(());
         }
     }
 
     /// 実行中の一括Traceroute全体を中止
     pub fn cancel_batch(&self) {
-        if let Some(tx) = self.batch_cancel.lock().take() {
+        if let Some(tx) = self.batch_cancel.lock().unwrap().take() {
             let _ = tx.send(true);
         }
     }
@@ -122,13 +121,40 @@ fn now_millis() -> u64 {
         .as_millis() as u64
 }
 
-/// プロセス標準出力を UTF-8 または Shift_JIS (CP932) としてデコード
+/// WindowsネイティブWin32 API (MultiByteToWideChar) を用いたOEM/Shift-JISデコード
+#[cfg(windows)]
+fn decode_oem_or_ansi(bytes: &[u8]) -> String {
+    if bytes.is_empty() {
+        return String::new();
+    }
+    use windows_sys::Win32::Globalization::{MultiByteToWideChar, CP_OEMCP};
+    let len = bytes.len() as i32;
+    unsafe {
+        let req = MultiByteToWideChar(CP_OEMCP, 0, bytes.as_ptr(), len, std::ptr::null_mut(), 0);
+        if req > 0 {
+            let mut wide_buf = vec![0u16; req as usize];
+            let converted = MultiByteToWideChar(CP_OEMCP, 0, bytes.as_ptr(), len, wide_buf.as_mut_ptr(), req);
+            if converted > 0 {
+                return String::from_utf16_lossy(&wide_buf[..converted as usize]);
+            }
+        }
+    }
+    String::from_utf8_lossy(bytes).to_string()
+}
+
+/// プロセス標準出力を UTF-8 または Windows OEM (CP932/Shift_JIS) としてデコード
 fn decode_bytes(bytes: &[u8]) -> String {
     if let Ok(s) = std::str::from_utf8(bytes) {
         s.to_string()
     } else {
-        let (cow, _, _) = encoding_rs::SHIFT_JIS.decode(bytes);
-        cow.into_owned()
+        #[cfg(windows)]
+        {
+            decode_oem_or_ansi(bytes)
+        }
+        #[cfg(not(windows))]
+        {
+            String::from_utf8_lossy(bytes).to_string()
+        }
     }
 }
 
@@ -146,7 +172,7 @@ pub async fn start_traceroute(
 
     let start_time = now_millis();
     let (stop_tx, mut stop_rx) = tokio::sync::oneshot::channel();
-    mgr.tasks.lock().insert(target_id.clone(), stop_tx);
+    mgr.tasks.lock().unwrap().insert(target_id.clone(), stop_tx);
 
     let t_id = target_id.clone();
     let t_ip = target_ip.trim().to_string();
@@ -186,7 +212,7 @@ pub async fn start_traceroute(
                         summary: format!("Tracerouteプロセスの起動に失敗しました: {}", e),
                     },
                 );
-                mgr_clone.tasks.lock().remove(&t_id);
+                mgr_clone.tasks.lock().unwrap().remove(&t_id);
                 return;
             }
         };
@@ -240,7 +266,7 @@ pub async fn start_traceroute(
         }
 
         let _ = child.wait().await;
-        mgr_clone.tasks.lock().remove(&t_id);
+        mgr_clone.tasks.lock().unwrap().remove(&t_id);
 
         let (success, summary) = if user_stopped {
             (false, "ユーザーによって中断されました".to_string())
@@ -318,7 +344,7 @@ pub async fn start_batch_traceroute(
     mgr.cancel_batch();
 
     let (stop_tx, stop_rx) = tokio::sync::watch::channel(false);
-    *mgr.batch_cancel.lock() = Some(stop_tx);
+    *mgr.batch_cancel.lock().unwrap() = Some(stop_tx);
 
     let batch_start_time = now_millis();
     let timeout_sec = timeout_secs.unwrap_or(60).clamp(10, 300);

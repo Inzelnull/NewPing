@@ -35,10 +35,8 @@
 
   --accent-cyan: #39c5bb;
   --accent-purple: #bc8cff;
-  --accent-amber: #d29922;
-
-  --font-sans: 'Plus Jakarta Sans', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', Consolas, Monaco, monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Yu Gothic UI", "Meiryo", "BIZ UDPGothic", system-ui, sans-serif;
+  --font-mono: Consolas, "Cascadia Code", "Courier New", monospace;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 3px 8px rgba(0, 0, 0, 0.5);

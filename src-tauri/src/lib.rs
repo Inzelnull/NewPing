@@ -15,12 +15,11 @@
 mod pinger;
 mod traceroute;
 
-use parking_lot::Mutex;
 use pinger::{ping_host, PingResult, PingTarget};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{
     menu::{Menu, MenuItem},
@@ -193,7 +192,7 @@ fn is_pinging(state: State<'_, AppState>) -> bool {
 #[tauri::command]
 async fn stop_ping(app_handle: tauri::AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     // 停止チャネルへ通知を送信してループを終了させる
-    if let Some(tx) = state.stop_tx.lock().take() {
+    if let Some(tx) = state.stop_tx.lock().unwrap().take() {
         let _ = tx.send(true);
     }
     state.is_running.store(false, Ordering::SeqCst);
@@ -217,7 +216,7 @@ async fn start_ping(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     // 既に実行中のPingタスクがあれば停止通知を送る
-    if let Some(tx) = state.stop_tx.lock().take() {
+    if let Some(tx) = state.stop_tx.lock().unwrap().take() {
         let _ = tx.send(true);
     }
 
@@ -229,7 +228,7 @@ async fn start_ping(
 
     // 停止シグナル用の watch チャネルを生成
     let (stop_tx, mut stop_rx) = watch::channel(false);
-    *state.stop_tx.lock() = Some(stop_tx);
+    *state.stop_tx.lock().unwrap() = Some(stop_tx);
     state.is_running.store(true, Ordering::SeqCst);
     update_tray_state(&app_handle, true);
 
@@ -693,7 +692,6 @@ pub fn run() {
     tauri::Builder::default()
         .manage(app_state)
         .manage(Arc::new(TracerouteManager::new()))
-        .plugin(tauri_plugin_log::Builder::default().build())
         .setup(|app| {
             // システムトレイメニューの構築
             let show_i = MenuItem::with_id(app, "show", "表示", true, None::<&str>)?;

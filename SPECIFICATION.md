@@ -22,8 +22,9 @@
    - 6.3 [LocalStorage 保存キー](#63-localstorage-保存キー)
 7. [バックエンド (Rust/Tauri) 仕様](#7-バックエンド-rusttauri-仕様)
    - 7.1 [ICMP Ping 実装仕様](#71-icmp-ping-実装仕様)
-   - 7.2 [IPCコマンド (Invoke API) 一覧](#72-ipcコマンド-invoke-api-一覧)
-   - 7.3 [イベント通知仕様](#73-イベント通知仕様)
+   - 7.2 [Traceroute & Win32 ネイティブ文字コードデコード仕様](#72-traceroute--win32-ネイティブ文字コードデコード仕様-tracerouters)
+   - 7.3 [IPCコマンド (Invoke API) 一覧](#73-ipcコマンド-invoke-api-一覧)
+   - 7.4 [イベント通知仕様](#74-イベント通知仕様)
 8. [ウィンドウおよびトレイ動作仕様](#8-ウィンドウおよびトレイ動作仕様)
 
 ---
@@ -47,13 +48,13 @@
 
 | 区分 | 技術・ライブラリ | 用途 / 補足 |
 | :--- | :--- | :--- |
-| **デスクトップ基盤** | **Tauri v2** (`@tauri-apps/cli` ^2.11, `@tauri-apps/api` ^2.11) | デスクトップアプリ基盤、ウィンドウ制御、IPC通信 |
+| **デスクトップ基盤** | **Tauri v2** (`@tauri-apps/cli` ^2.11, `@tauri-apps/api` ^2.11) | デスクトップアプリ基盤、ウィンドウ制御、IPC通信（The Commons Conservancy公的財団管理） |
 | **バックエンド** | **Rust** (Edition 2021) | ネイティブICMP Ping実行、ファイルI/O、トレイ管理 |
-| **Pingエンジン** | `windows-sys` (IpHelper: `IcmpSendEcho`) | WindowsネイティブICMP API呼び出し |
-| **非同期ランタイム** | `tokio`, `parking_lot` | 非同期ループ、スレッドセーフなステート管理 |
-| **フロントエンド** | **HTML5 / Vanilla CSS / TypeScript** | UI構造、モダンデザイン、ステート管理 |
+| **Ping & 文字コードエンジン** | `windows-sys` (IpHelper: `IcmpSendEcho`, Globalization: `MultiByteToWideChar`) | **Microsoft公式** Win32 APIによる直接ICMP Echo送信およびCP932/Shift-JISデコード |
+| **非同期ランタイム・同期** | `tokio`, `std::sync::Mutex` | 非同期ループ、OSネイティブSRWLOCK同期 |
+| **フロントエンド** | **HTML5 / Vanilla CSS / TypeScript** | UI構造、モダンデザイン、ステート管理（Microsoft公式 TypeScript） |
 | **ビルドツール** | **Vite** ^8.2 | 高速フロントエンドビルド・開発サーバー |
-| **フォント** | JetBrains Mono, Plus Jakarta Sans, Noto Sans JP | Google Fonts による視認性の高いUIタイポグラフィ |
+| **フォント・アイコン** | インラインSVG, Windows標準フォント（Segoe UI / Meiryo / Consolas 等） | 外部CDN通信ゼロ・完全オフライン対応の高視認性UIタイポグラフィ |
 
 ---
 
@@ -291,7 +292,12 @@ flowchart TD
 - **その他OS (`cfg(not(windows))`)**:
   - 開発/クロスプラットフォーム用モックハンドラ。
 
-### 7.2 IPCコマンド (Invoke API) 一覧
+### 7.2 Traceroute & Win32 ネイティブ文字コードデコード仕様 (`traceroute.rs`)
+- **Traceroute実行**: Windows標準 `tracert -d -h 30 -w 2000 <IP>` をバックグラウンド非同期プロセス（`tokio::process::Command`）として起動し、標準出力をリアルタイムに行単位ストリーム受信。
+- **文字コードデコード**: 外部ライブラリを一切使わず、Microsoft公式の Win32 API `MultiByteToWideChar`（`CP_OEMCP`）を用いて、日本語Windowsコンソールの Shift-JIS / CP932 出力を直接 UTF-16 バッファへ変換し、Rustの UTF-8 文字列として安全・高速に復元。
+- **並行一括実行**: 登録された全監視対象に対して非同期タスクを並行生成し、完了進捗イベント（`batch-traceroute-progress`）を配信。全件完了時に統合テキストレポートファイルを生成して指定保存先に自動保存。
+
+### 7.3 IPCコマンド (Invoke API) 一覧
 
 | コマンド名 | 引数 | 戻り値 | 概要 |
 | :--- | :--- | :--- | :--- |
@@ -316,7 +322,7 @@ flowchart TD
 | `stop_traceroute` | `target_id: String` | `Result<(), String>` | 個別Tracerouteプロセスを強制終了 |
 | `exit_app` | なし | `()` | アプリケーションを正常終了 |
 
-### 7.3 イベント通知仕様
+### 7.4 イベント通知仕様
 
 | イベント名 | 送信元 | ペイロード | 概要 |
 | :--- | :--- | :--- | :--- |

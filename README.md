@@ -28,11 +28,12 @@
 ## ✨ 主な特長
 
 - 🚀 **超軽量＆高速動作**: Tauri v2 + Rust による最小限のメモリ・CPUリソース消費と即時起動。
+- 🛡️ **高いセキュリティ・信頼性**: 個人管理サードパーティライブラリを完全排除。Microsoft公式・公的財団（The Commons Conservancy）・Rust標準機能のみで構築し、マルウェア・サプライチェーン攻撃リスクを極小化。完全オフライン環境でも動作可能。
 - 🎯 **高精度 ICMP Ping**: Windows標準の `IcmpSendEcho` API を直接呼び出し、管理者権限不要でミリ秒単位の高精度な往復遅延時間（RTT）を計測。
 - 📊 **直感的なストリーム可視化**: 監視結果を「〇 (青/正常)」と「× (赤/不通)」のタイムライン形式で最新順に常時ストリーム表示。
 - 🚨 **不通検知アラート**: 監視対象のタイムアウトや不通を検知した際にポップアップで即座に通知。
 - 📈 **詳細統計 & CSVエクスポート**: パケットロス率、平均/最小/最大RTTをリアルタイムに自動集計。Excel対応（BOM付きUTF-8）のCSVファイルとしてエクスポート可能。
-- 🧭 **Traceroute（経路追跡）**: 対象ホストへのネットワーク経路と各ホップの応答速度を調査可能。
+- 🧭 **Traceroute（経路追跡）**: 対象ホストへのネットワーク経路と各ホップの応答速度を調査可能（OSネイティブWin32 APIでShift-JIS/CP932を安全・正確にデコード）。
 - 🎨 **ダーク / ライトテーマ対応**: システム環境や好みに応じてワンクリックで外観を切り替え可能。
 - 📌 **システムトレイ常駐**: 最小化時やバックグラウンドでの継続監視に対応。
 
@@ -55,12 +56,12 @@
 
 | 区分 | 技術・ライブラリ | 用途 |
 | :--- | :--- | :--- |
-| **デスクトップ基盤** | **Tauri v2** (`@tauri-apps/api`, `@tauri-apps/cli`) | デスクトップアプリ基盤、ウィンドウ・トレイ制御、IPC |
+| **デスクトップ基盤** | **Tauri v2** (`@tauri-apps/api`, `@tauri-apps/cli`) | デスクトップアプリ基盤、ウィンドウ・トレイ制御、IPC（公的財団管理） |
 | **バックエンド** | **Rust** (2021 Edition) | 非同期Pingループ処理、ファイルI/O、トレイ管理、マルチモニター検出 |
-| **Pingエンジン** | `windows-sys` (`IcmpSendEcho`, `Win32_UI_WindowsAndMessaging`) | WindowsネイティブICMP API & ウィンドウ配置制御 |
-| **非同期ランタイム** | `tokio`, `parking_lot` | マルチスレッド非同期処理、スレッドセーフな状態管理 |
-| **フロントエンド** | **TypeScript, HTML5, Vanilla CSS** | UI構造、モダンUIデザイン、リアクティブ状態管理 |
-| **アイコン・フォント** | **Lucide Icons**, Google Fonts (JetBrains Mono / Plus Jakarta Sans) | 高視認性のタイポグラフィとUIアイコン |
+| **Ping & 文字コードエンジン** | `windows-sys` (`IcmpSendEcho`, `MultiByteToWideChar`) | **Microsoft公式** Win32 API（ネイティブICMP送信 & Shift-JISデコード） |
+| **非同期ランタイム・同期** | `tokio`, `std::sync::Mutex` | マルチスレッド非同期処理、OSネイティブSRWLOCK同期 |
+| **フロントエンド** | **TypeScript, HTML5, Vanilla CSS** | UI構造、モダンUIデザイン、リアクティブ状態管理（Microsoft公式 TypeScript） |
+| **アイコン・フォント** | インラインSVG, Windows標準フォント（Segoe UI / Meiryo / Consolas 等） | 外部CDN通信ゼロ・完全オフライン対応の高視認性UI |
 | **ビルドツール** | **Vite** | 高速フロントエンドバンドラ・開発環境 |
 
 ---
