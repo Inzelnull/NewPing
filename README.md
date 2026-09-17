@@ -66,6 +66,43 @@
 
 ---
 
+## 📁 ディレクトリ・ファイル構成
+
+プロジェクトの主要なディレクトリとファイル構造は以下の通りです：
+
+```text
+NewPing/
+├── 📄 index.html                # メインウィンドウのHTML構造
+├── 📄 traceroute.html           # Traceroute専用サブウィンドウのHTML構造
+├── 📄 package.json              # フロントエンド依存関係・ビルドスクリプト定義
+├── 📄 tsconfig.json             # TypeScriptコンパイラ設定
+├── 📄 vite.config.ts            # Viteバンドラ設定
+├── ⚙️ ping-list.config          # 監視対象リストの設定ファイル
+├── 📄 README.md                 # プロジェクト概要・利用手順書（本ファイル）
+├── 📄 SPECIFICATION.md          # アプリケーション詳細仕様書
+├── 📄 LICENSE_AUDIT.md          # ライセンス・サプライチェーンセキュリティ監査書
+├── 📄 THIRD_PARTY_LIBRARIES.md  # 使用サードパーティライブラリ一覧
+│
+├── 📁 src/                      # フロントエンド（UI / TypeScript / CSS）
+│   ├── 📜 main.ts               # メイン画面ロジック、IPC通信、Pingストリーム描画、統計集計
+│   ├── 📜 style.css             # UIスタイリング（ダーク/ライトテーマ、アニメーション、レスポンシブ）
+│   └── 📜 traceroute-window.ts  # Tracerouteサブウィンドウ専用ロジック・リアルタイム進捗表示
+│
+└── 📁 src-tauri/                # バックエンド（Tauri v2 / Rustコア）
+    ├── ⚙️ Cargo.toml            # Rustクレート依存関係定義
+    ├── ⚙️ tauri.conf.json       # Tauri設定（ウィンドウ構成、システムトレイ、セキュリティ権限等）
+    ├── 📜 build.rs              # Tauriビルドスクリプト
+    ├── 📁 capabilities/         # アプリケーション権限設定 (default.json)
+    ├── 📁 icons/                # アプリアイコンおよび動的トレイアイコン (idle/running/green/red等)
+    └── 📁 src/                  # Rustソースコード
+        ├── 🦀 main.rs           # エントリポイント
+        ├── 🦀 lib.rs            # IPCコマンドハンドラ、トレイ制御、マルチディスプレイ検出
+        ├── 🦀 pinger.rs         # Win32 IcmpSendEcho APIによる非同期Ping監視エンジン
+        └── 🦀 traceroute.rs     # Win32ネイティブAPIによるTraceroute経路追跡エンジン
+```
+
+---
+
 ## 📋 動作要件
 
 - **OS**: Windows 10 / Windows 11 (64-bit)
