@@ -131,6 +131,7 @@ const resultsTableWrapper = document.getElementById("results-scroll-area") as HT
 const resultsEmpty = document.getElementById("results-empty") as HTMLElement;
 const resultsTbody = document.getElementById("results-tbody") as HTMLTableSectionElement;
 const btnGotoSettings = document.getElementById("btn-goto-settings") as HTMLButtonElement;
+const streamFloatingTooltip = document.getElementById("stream-floating-tooltip") as HTMLElement;
 
 // 不通検知アラートポップアップの要素
 const ngAlertPopup = document.getElementById("ng-alert-popup") as HTMLElement;
@@ -584,6 +585,134 @@ resultsTableWrapper.addEventListener(
   },
   { passive: false }
 );
+
+// ============================================================================
+// ストリームアイテム（〇 / ×）用フローティング・ツールチップ制御
+// 固定列の背後に潜った〇×は固定列の下に隠しつつ、ホバー時のツールチップだけを最前面に表示
+// ============================================================================
+let activeTooltipItem: HTMLElement | null = null;
+
+/**
+ * 固定列（Ping対象・最新状態・実行回数）の右端X座標を取得する関数
+ */
+function getStickyColumnsRight(): number {
+  const countEl = resultsTableWrapper.querySelector("td.col-count");
+  if (countEl) {
+    return countEl.getBoundingClientRect().right;
+  }
+  const wrapperRect = resultsTableWrapper.getBoundingClientRect();
+  return wrapperRect.left + 345;
+}
+
+/**
+ * ストリームアイテムのツールチップを非表示にする関数
+ */
+function hideStreamTooltip(): void {
+  activeTooltipItem = null;
+  if (!streamFloatingTooltip) return;
+  streamFloatingTooltip.classList.remove("visible");
+  streamFloatingTooltip.style.display = "none";
+}
+
+/**
+ * ホバー中アイテムの座標に基づきツールチップ位置を更新する関数
+ */
+function updateStreamTooltipPosition(): void {
+  if (!activeTooltipItem || !streamFloatingTooltip) return;
+  if (!activeTooltipItem.isConnected) {
+    hideStreamTooltip();
+    return;
+  }
+
+  const text = activeTooltipItem.getAttribute("data-tooltip");
+  if (!text) {
+    hideStreamTooltip();
+    return;
+  }
+
+  const itemRect = activeTooltipItem.getBoundingClientRect();
+  const wrapperRect = resultsTableWrapper.getBoundingClientRect();
+  const stickyRight = getStickyColumnsRight();
+
+  // アイテムが固定列の背後に完全に潜り込んでいる、またはテーブル表示領域外の場合は隠す
+  if (
+    itemRect.right <= stickyRight + 2 ||
+    itemRect.left >= wrapperRect.right - 2 ||
+    itemRect.bottom <= wrapperRect.top ||
+    itemRect.top >= wrapperRect.bottom
+  ) {
+    hideStreamTooltip();
+    return;
+  }
+
+  streamFloatingTooltip.textContent = text;
+  streamFloatingTooltip.style.display = "block";
+
+  const tipRect = streamFloatingTooltip.getBoundingClientRect();
+
+  // 水平位置: アイテムの中央に配置
+  let left = itemRect.left + itemRect.width / 2 - tipRect.width / 2;
+  const margin = 8;
+  if (left < margin) left = margin;
+  if (left + tipRect.width > window.innerWidth - margin) {
+    left = window.innerWidth - margin - tipRect.width;
+  }
+
+  // 垂直位置: 基本はアイテムの上側、上端やヘッダーにはみ出る場合は下側に反転
+  let top = itemRect.top - tipRect.height - 6;
+  const minTop = Math.max(wrapperRect.top, 34);
+  if (top < minTop) {
+    top = itemRect.bottom + 6;
+  }
+
+  streamFloatingTooltip.style.left = `${Math.round(left)}px`;
+  streamFloatingTooltip.style.top = `${Math.round(top)}px`;
+  streamFloatingTooltip.classList.add("visible");
+}
+
+/**
+ * ストリームアイテムにホバーしたときのツールチップ表示ハンドラ
+ */
+function showStreamTooltip(item: HTMLElement): void {
+  activeTooltipItem = item;
+  updateStreamTooltipPosition();
+}
+
+// resultsTableWrapper に対するイベント委譲でツールチップを制御
+resultsTableWrapper.addEventListener("mouseover", (e: MouseEvent) => {
+  const target = e.target as HTMLElement | null;
+  if (!target) return;
+  const item = target.closest(".stream-item") as HTMLElement | null;
+  if (item && item.hasAttribute("data-tooltip")) {
+    showStreamTooltip(item);
+  }
+});
+
+resultsTableWrapper.addEventListener("mouseout", (e: MouseEvent) => {
+  const target = e.target as HTMLElement | null;
+  const related = e.relatedTarget as HTMLElement | null;
+  if (target?.closest(".stream-item") && !related?.closest(".stream-item")) {
+    hideStreamTooltip();
+  } else if (related?.closest(".stream-item")) {
+    const newItem = related.closest(".stream-item") as HTMLElement;
+    if (newItem !== activeTooltipItem && newItem.hasAttribute("data-tooltip")) {
+      showStreamTooltip(newItem);
+    }
+  }
+});
+
+// スクロール時にツールチップ位置を更新（固定列に潜った場合は非表示）
+resultsTableWrapper.addEventListener("scroll", () => {
+  if (activeTooltipItem) {
+    updateStreamTooltipPosition();
+  }
+});
+
+window.addEventListener("resize", () => {
+  if (activeTooltipItem) {
+    updateStreamTooltipPosition();
+  }
+});
 
 /**
  * バックエンドから届いた1回分のPing結果イベントを処理し、UIや統計情報を更新する関数

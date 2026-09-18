@@ -567,7 +567,7 @@ input, textarea, button {
 .results-table td.col-target {
   position: sticky;
   left: 0;
-  z-index: 10;
+  z-index: 20;
   width: 200px;
   min-width: 200px;
   max-width: 200px;
@@ -579,7 +579,7 @@ input, textarea, button {
 .results-table td.col-status {
   position: sticky;
   left: 200px;
-  z-index: 10;
+  z-index: 20;
   width: 80px;
   min-width: 80px;
   max-width: 80px;
@@ -592,7 +592,7 @@ input, textarea, button {
 .results-table td.col-count {
   position: sticky;
   left: 280px;
-  z-index: 10;
+  z-index: 20;
   width: 65px;
   min-width: 65px;
   max-width: 65px;
@@ -613,12 +613,6 @@ input, textarea, button {
   min-width: 300px;
   box-sizing: border-box;
   position: relative;
-}
-
-/* ホバー中の行のストリーム列を最前面にして、固定列(最新状態・実行回数 z-index: 10)にツールチップが隠れないようにする */
-.results-table tbody tr:hover td.col-stream {
-  position: relative;
-  z-index: 40;
 }
 
 .results-table tbody tr {
@@ -759,7 +753,7 @@ input, textarea, button {
 .stream-item.ok.fallback:hover {
   transform: scale(1.3);
   box-shadow: 0 0 8px var(--ping-fallback-glow);
-  z-index: 10;
+  z-index: 5;
 }
 
 .stream-item.ng {
@@ -786,13 +780,11 @@ input, textarea, button {
   z-index: 5;
 }
 
-/* Tooltip on stream item */
-.stream-item[data-tooltip]:hover::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: 125%;
-  left: 50%;
-  transform: translateX(-50%);
+/* Floating tooltip for stream items: Always rendered on top of everything without breaking sticky columns */
+.stream-floating-tooltip {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
   background: #000000;
   color: #ffffff;
   padding: 4px 8px;
@@ -800,16 +792,16 @@ input, textarea, button {
   font-size: 10.5px;
   font-family: var(--font-mono);
   white-space: nowrap;
-  pointer-events: none;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.75);
   border: 1px solid var(--border-subtle);
-  z-index: 100;
+  transition: opacity 0.08s ease;
+  opacity: 0;
+  display: none;
+  line-height: 1.3;
 }
 
-/* Tooltip on first row opens downward so it is not clipped by table wrapper overflow */
-.results-table tbody tr:first-child .stream-item[data-tooltip]:hover::after {
-  bottom: auto;
-  top: 125%;
+.stream-floating-tooltip.visible {
+  opacity: 1;
 }
 
 /* Empty State */
@@ -2614,7 +2606,7 @@ input, textarea, button {
   background: #afb8c1;
 }
 
-[data-theme="light"] .stream-item[data-tooltip]:hover::after {
+[data-theme="light"] .stream-floating-tooltip {
   background: #24292f;
   color: #ffffff;
   border-color: #d0d7de;

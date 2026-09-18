@@ -215,6 +215,7 @@ pub fn ping_resolved_ip(ipv4: Ipv4Addr, timeout_ms: u32, packet_size: u32) -> (b
 }
 
 /// 1ホップの traceroute 出力から対象IPの疎通成否とRTT(ms)を取得
+#[allow(dead_code)]
 pub fn parse_traceroute_one_hop(output: &str, target_ip: &str) -> (bool, Option<u32>) {
     for line in output.lines() {
         let trimmed = line.trim();
