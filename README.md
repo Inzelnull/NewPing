@@ -17,8 +17,8 @@
 | プラットフォーム / 配布形式 | ダウンロードリンク | ファイルサイズ | 特徴 |
 | :--- | :--- | :--- | :--- |
 | **Windows スタンドアロン実行ファイル** | [📥 **NewPing.exe をダウンロード**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/NewPing.exe) | 約 10 MB | インストール不要。ダウンロード後そのまま起動できるポータブル版 |
-| **Windows NSIS インストーラー** | [📥 **Pingツール_0.1.0_x64-setup.exe をダウンロード**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/bundle/nsis/Ping%E3%83%84%E3%83%BC%E3%83%AB_0.1.0_x64-setup.exe) | 約 2.4 MB | スタートメニューやデスクトップにショートカットを作成するセットアップ版 |
-| **macOS DMG / App** | `src-tauri/target/release/bundle/dmg/` | 各種 | macOS (Apple Silicon / Intel) 向けディスクイメージおよびアプリケーションバンドル |
+| **Windows NSIS インストーラー** | [📥 **NewPing_0.1.0_x64-setup.exe をダウンロード**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/bundle/nsis/NewPing_0.1.0_x64-setup.exe) | 約 2.4 MB | スタートメニューやデスクトップにショートカットを作成するセットアップ版 |
+| **macOS DMG インストーラー** | [📥 **NewPing_0.1.0_aarch64.dmg をダウンロード**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/bundle/dmg/NewPing_0.1.0_aarch64.dmg) | 約 4.3 MB | macOS (Apple Silicon: M1/M2/M3/M4等) 向けディスクイメージ |
 
 > [!TIP]
 > - 初回起動時に Windows SmartScreen や macOS Gatekeeper の警告が表示された場合は、「詳細情報」→「実行」または「システム設定」→「プライバシーとセキュリティ」から許可してください。
@@ -147,7 +147,7 @@ npm run tauri build
 | OS / 種別 | ファイルパス | 説明 |
 | :--- | :--- | :--- |
 | **Windows スタンドアロン実行ファイル** | `src-tauri/target/release/NewPing.exe` | インストール不要で単体起動できるポータブル実行バイナリ |
-| **Windows NSIS インストーラー** | `src-tauri/target/release/bundle/nsis/Pingツール_0.1.0_x64-setup.exe` | スタートメニューやデスクトップショートカットを作成するセットアッププログラム |
+| **Windows NSIS インストーラー** | `src-tauri/target/release/bundle/nsis/NewPing_0.1.0_x64-setup.exe` | スタートメニューやデスクトップショートカットを作成するセットアッププログラム |
 | **macOS DMG インストーラー** | `src-tauri/target/release/bundle/dmg/NewPing_0.1.0_aarch64.dmg` (または x64) | ドラッグ＆ドロップでインストール可能なディスクイメージ |
 | **macOS App バンドル** | `src-tauri/target/release/bundle/macos/NewPing.app` | macOSスタンドアロンアプリケーションバンドル |
 
