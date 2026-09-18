@@ -37,7 +37,9 @@
 
 ### 1.2 主な特長
 - **超軽量＆高速動作**: Tauri v2 + Rust による最小限のリソース消費と高速起動。
-- **高精度 ICMP Ping**: Windows標準の `IcmpSendEcho` API を直接呼び出し、高精度な往復遅延時間(RTT)をミリ秒単位で計測。
+- **高精度 ICMP Ping (Win/Macマルチ対応)**:
+  - **Windows**: Windows標準の `IcmpSendEcho` API を直接呼び出し、管理者権限不要でミリ秒単位の高精度計測。
+  - **macOS**: OS標準BSD Ping (`/sbin/ping`) + SUID root `/usr/sbin/traceroute` によるSequoiaローカルネットワークTCC制限自動回避ハイブリッド計測。
 - **直感的なストリーム可視化**: 監視結果を「〇(青/通常正常)」、「〇(黄緑/macOS TCC回避正常)」、「×(赤/不通)」のタイムライン形式で最新順に常時表示。
 - **不通検知アラート**: Ping失敗（タイムアウト）が発生した機器を即座にポップアップ検知。
 - **詳細統計とCSV保存**: パケットロス率、平均/最小/最大RTTをリアルタイム自動集計し、Excel対応のCSV形式で保存可能。
@@ -55,7 +57,7 @@
 | **非同期ランタイム・同期** | `tokio`, `std::sync::Mutex` | 非同期ループ、OSネイティブ同期 |
 | **フロントエンド** | **HTML5 / Vanilla CSS / TypeScript** | UI構造、モダンデザイン、ステート管理（Microsoft公式 TypeScript） |
 | **ビルドツール** | **Vite** ^8.2 | 高速フロントエンドビルド・開発サーバー |
-| **フォント・アイコン** | インラインSVG, OS標準フォント（Segoe UI / Meiryo / SF Pro / Consolas 等） | 外部CDN通信ゼロ・完全オフライン対応の高視認性UIタイポグラフィ |
+| **フォント・アイコン** | インラインSVG, OS標準フォント（Segoe UI / Meiryo / SF Pro / Hiragino Sans / Consolas 等） | 外部CDN通信ゼロ・完全オフライン対応の高視認性UIタイポグラフィ |
 
 ---
 
@@ -63,7 +65,7 @@
 
 ```mermaid
 flowchart TD
-    subgraph Frontend["WebView2 (Frontend)"]
+    subgraph Frontend["WebView2 / WebKit (Frontend)"]
         UI["UI View / Tabs"]
         State["App State & Stats Manager"]
         Storage[("LocalStorage")]
@@ -71,13 +73,13 @@ flowchart TD
 
     subgraph IPC["Tauri IPC Bridge"]
         Invokes["Invoke Commands"]
-        Events["Event Listener: ping-result, request-close"]
+        Events["Event Listener: ping-result, packet-size-changed, request-close"]
     end
 
     subgraph Backend["Rust Backend"]
         TauriCore["Tauri App State & Tray Handler"]
         PingLoop["Tokio Async Ping Worker Loop"]
-        ICMP["Windows IcmpSendEcho API"]
+        ICMP["Win32 IcmpSendEcho / macOS BSD Ping + Traceroute"]
         FileIO["Config & CSV File I/O"]
     end
 
@@ -103,17 +105,19 @@ flowchart TD
 | 機能ID | 機能名 | 機能概要 |
 | :--- | :--- | :--- |
 | **F-01** | Ping一括監視 | 登録された全対象に対して指定周期・指定ディレイでPingを実行（ディレイ0ms時は同時実行、1ms以上時は上から順にディレイ実行） |
-| **F-02** | タイムラインストリーム表示 | 最新結果を右端に追加し、過去履歴（最大100件）を横スクロール表示 |
+| **F-02** | タイムラインストリーム表示 | 最新結果を右端に追加し、過去履歴（最大100件）を横スクロール表示（青:通常、黄緑:macOS TCC回避、赤:不通） |
 | **F-03** | 不通(NG)即時通知ポップアップ | Ping失敗が発生している機器を右下に常時リストアップ表示 |
 | **F-04** | 履歴クリア | 画面上の応答履歴・ステータス表示を初期化 |
 | **F-05** | 対象設定編集 & プレビュー | テキスト形式で対象を編集、即時バリデーション＆件数プレビュー表示 |
-| **F-06** | 設定ファイル連携 | `ping-list.config` の起動時自動読込、保存、手動再読込 |
-| **F-07** | 周期・タイムアウト・ディレイ・パケットサイズ調整 | 実行間隔（1〜10秒）、実行ディレイ（0〜1000ms、初期値50ms）、パケットサイズ（32〜10000バイト、スライダー32〜1472、初期値32B、送信サイズ+28B表示、分割不可DFフラグ付与）、タイムアウト（500〜5000ms）を自由に調整 |
+| **F-06** | 設定ファイル連携 | `ping-list.config` および `ping-parameters.conf` の起動時自動読込、保存、手動再読込 |
+| **F-07** | 周期・タイムアウト・ディレイ・パケットサイズ調整 | 実行間隔（1〜10秒）、実行ディレイ（0〜1000ms、初期値50ms）、パケットサイズ（32〜10000バイト、初期値32B、送信サイズ+28B表示、DFフラグ付与）、NG時自動縮小、タイムアウト（500〜5000ms）を自由に調整 |
 | **F-08** | カラーテーマ切替 | ホワイトモード / ダークモードの切替とローカル保存 |
 | **F-09** | 統計集計 | 送信数、成功数、失敗数、ロス率、平均/最小/最大RTTをリアルタイム算出 |
-| **F-10** | CSVレポート保存 | 集計統計データをUTF-8 BOM付きCSVファイルとして保存/ダウンロード |
+| **F-10** | CSVレポート保存 | 集計統計データをUTF-8 BOM付きCSVファイルとして指定保存先（Win: result, Mac: ~/Documents/result）へ出力 |
 | **F-11** | システムトレイ常駐 | ウィンドウ最小化時にトレイへ格納、左クリックでの表示/非表示切替 |
 | **F-12** | 終了確認ダイアログ | 誤操作防止のため、閉じるボタンおよびトレイ終了時に確認ダイアログを表示 |
+| **F-13** | 起動元ディスプレイ自動検知 | マルチディスプレイ環境で、実行ファイル起動元または操作ウィンドウが存在するモニターの中央にアプリを初期配置 |
+| **F-14** | macOS Sequoia TCC制限自動回避 | macOSローカルネットワーク制限環境下で、プライベートIP宛てBSD pingがNGの場合にSUID root traceroute 1ホップによる自動フォールバック疎通計測を実施 |
 
 ---
 
@@ -138,9 +142,9 @@ flowchart TD
   | 列名 | 内容 |
   | :--- | :--- |
   | **Ping対象** | 日本語名称およびIPアドレス |
-  | **最新状態** | 最新RTT（例: `12 ms`）または `Timeout` / `待機中` |
+  | **最新状態** | 最新RTT（例: `12 ms`、通常正常: 青文字/背景、macOS TCC回避フォールバック時: 黄緑文字/背景）または `Timeout` (赤) / `待機中` (灰) |
   | **実行回数** | 当該ターゲットの総Ping試行回数 |
-  | **応答履歴** | 〇(青) / ×(赤) のタイムラインバッジ。ホバーで日時と応答時間のツールチップ表示。マウスホイールでの横スクロール対応。 |
+  | **応答履歴** | 〇(青/通常正常)、〇(黄緑/macOS TCC回避正常)、×(赤/不通) のタイムラインバッジ。ホバーで日時・応答時間・送信サイズ（フォールバック時は注記）のツールチップ表示。マウスホイールでの横スクロール対応。 |
 - **不通検知フローティングポップアップ (右下)**:
   - 1件以上NGが存在する場合に自動表示。
   - 対象の名称・IP・「不通 (NG)」バッジをリアルタイム表示。全て復旧すると自動非表示。
@@ -294,6 +298,10 @@ flowchart TD
   - OS標準の `/sbin/ping` (BSD ping) を非同期プロセスとして呼び出し、管理者権限不要でミリ秒単位のPing計測を実行。
   - `-c 1` (1回送信)、`-W <timeout_ms>` (タイムアウトミリ秒)、`-s <packet_size>` (ペイロード長)、`-D` (Don't Fragmentフラグ) を指定。
   - 標準出力の `time=X.X ms` または `round-trip min/avg/max` を高精度パースして成否とRTTを取得。
+  - **macOS Sequoia ローカルネットワークTCC制限自動回避ハイブリッド計測**:
+    - macOS 15 (Sequoia) 以降で導入されたローカルネットワークアクセス制限（TCC）により、未許可状態でプライベートIP（RFC 1918 / リンクローカル）宛ての `/sbin/ping` が不通となる問題を解決。
+    - BSD pingが失敗かつ宛先がプライベートIPの場合、macOS標準でSUID root権限が付与されている `/usr/sbin/traceroute` を用いて 1ホップ・単一プローブ（`-n -q 1 -m 1 -w <timeout_secs>`）でフォールバック疎通計測を実行。
+    - フォールバック成功時は `(true, Some(rtt), true)`（`is_fallback: true`）を返却し、フロントエンド側で黄緑色「〇」バッジとして差別化表示。
 - **その他OS (`cfg(all(not(windows), not(target_os = "macos")))`)**:
   - 開発/クロスプラットフォーム用モックハンドラ。
 
@@ -302,9 +310,14 @@ flowchart TD
 - **ゼロフリッカー差分更新**: Ping結果受信時は該当する行のDOMプロパティのみを差分更新し、テーブル全体の再構築を行わないことでCPU負荷および画面の点滅（フリッカー）を完全防止。
 - **統計テーブル差分更新**: 統計画面においても既存の行DOMを再利用し、テキストコンテンツのみを差分反映。
 
-### 7.3 Traceroute & Win32 ネイティブ文字コードデコード仕様 (`traceroute.rs`)
-- **Traceroute実行**: Windows標準 `tracert -d -h 30 -w 2000 <IP>` をバックグラウンド非同期プロセス（`tokio::process::Command`）として起動し、標準出力をリアルタイムに行単位ストリーム受信。
-- **文字コードデコード**: 外部ライブラリを一切使わず、Microsoft公式の Win32 API `MultiByteToWideChar`（`CP_OEMCP`）を用いて、日本語Windowsコンソールの Shift-JIS / CP932 出力を直接 UTF-16 バッファへ変換し、Rustの UTF-8 文字列として安全・高速に復元。
+### 7.3 Traceroute & マルチプラットフォーム文字コードデコード仕様 (`traceroute.rs`)
+- **Traceroute実行**:
+  - **Windows**: Windows標準 `tracert -d -h 30 -w 2000 <IP>` をバックグラウンド非同期プロセス（`tokio::process::Command`, コンソール非表示フラグ `CREATE_NO_WINDOW` 付与）として起動。
+  - **macOS / 非Windows**: OS標準 `traceroute -n -m 30 -w 2 <IP>` をバックグラウンド非同期プロセスとして起動。
+  - 標準出力をリアルタイムに行単位ストリーム受信し、イベント `traceroute-line` を配信。
+- **文字コードデコード**:
+  - **Windows**: 外部ライブラリを一切使わず、Microsoft公式の Win32 API `MultiByteToWideChar`（`CP_OEMCP` / `CP_ACP`）を用いて、日本語Windowsコンソールの Shift-JIS / CP932 出力を直接 UTF-16 バッファへ変換し、Rustの UTF-8 文字列として安全・高速に復元。
+  - **macOS / 非Windows**: 標準ストリーム出力を UTF-8 文字列として直接読み込み。
 - **並行一括実行**: 登録された全監視対象に対して非同期タスクを並行生成し、完了進捗イベント（`batch-traceroute-progress`）を配信。全件完了時に統合テキストレポートファイルを生成して指定保存先に自動保存。
 
 ### 7.4 IPCコマンド (Invoke API) 一覧
@@ -328,23 +341,30 @@ flowchart TD
 | `open_folder` | `path: String` | `Result<(), String>` | 指定フォルダをOS標準のエクスプローラーで開く |
 | `get_default_save_dir` | なし | `Result<String, String>` | デフォルトの保存先フォルダ絶対パスを取得 |
 | `open_traceroute_window` | `target_id: String`, `target_ip: String`, `target_name: String`, `timeout_secs: Option<u64>` | `Result<(), String>` | 個別Tracerouteウィンドウを起動 |
-| `start_traceroute` | `target_id: String`, `target_ip: String`, `timeout_secs: Option<u64>` | `Result<(), String>` | 個別Tracerouteプロセスを開始 |
+| `start_traceroute` | `target_id: String`, `target_ip: String`, `timeout_secs: Option<u64>` | `Result<u64, String>` | 個別Tracerouteプロセスを開始（開始タイムスタンプ返却） |
 | `stop_traceroute` | `target_id: String` | `Result<(), String>` | 個別Tracerouteプロセスを強制終了 |
+| `close_window` | なし (Window, AppHandle) | `Result<(), String>` | 指定ウィンドウを閉じる（メインウィンドウ破棄時は全サブウィンドウも連動クローズ） |
 | `exit_app` | なし | `()` | アプリケーションを正常終了 |
 
 ### 7.5 イベント通知仕様
 
 | イベント名 | 送信元 | ペイロード | 概要 |
 | :--- | :--- | :--- | :--- |
-| `ping-result` | Rustバックエンド | `PingResult` (`{ id, ip, success, rtt_ms, timestamp, packet_size }`) | 各ターゲットのPing完了ごとにフロントエンドへプッシュ配信 |
+| `ping-result` | Rustバックエンド | `PingResult` (`{ id, ip, success, rtt_ms, timestamp, packet_size, is_fallback }`) | 各ターゲットのPing完了ごとにフロントエンドへプッシュ配信 |
 | `packet-size-changed` | Rustバックエンド | `u32` (新パケットサイズ) | NG検知によりパケットサイズが減衰した際にフロントエンドへ通知 |
 | `request-close` | Rust (トレイ/ウィンドウ) | `()` | ウィンドウの「×」ボタン押下時またはトレイの「終了」選択時に発火し、確認ダイアログの表示を要求 |
+| `traceroute-line` | Rustバックエンド | `TracerouteLineEvent` (`{ target_id, line, timestamp }`) | 個別Traceroute実行中に受信した出力行をリアルタイム配信 |
+| `traceroute-finish` | Rustバックエンド | `TracerouteFinishEvent` (`{ target_id, success, end_time, summary }`) | 個別Traceroute実行の完了（正常終了/タイムアウト/中止）を通知 |
+| `batch-traceroute-progress` | Rustバックエンド | `BatchTracerouteProgressEvent` (`{ completed_count, total_count, target_name, target_ip, success }`) | 一括Traceroute実行中、1ターゲット完了ごとに進捗状況を配信 |
 
 ---
 
 ## 8. ウィンドウおよびトレイ動作仕様
 
-- **初期ウィンドウサイズ**: 幅 1000px × 高さ 680px（最小: 720px × 480px、リサイズ可能、画面中央配置）。
+- **初期ウィンドウサイズ**: 幅 1000px × 高さ 680px（最小: 720px × 480px、リサイズ可能）。
+- **起動元ディスプレイ自動検知**:
+  - Windows環境では、実行ファイルを起動したエクスプローラー等のフォアグラウンドウィンドウ座標またはマウスカーソル座標を取得（Win32 `GetCursorPos` / `GetForegroundWindow`）。
+  - 該当するモニター（PhysicalPosition / Size / ScaleFactor）を自動特定し、そのモニターの中央にメインウィンドウを正確に配置。
 - **最小化動作**:
   - ウィンドウ最小化イベント検知時、ウィンドウを非表示（Hide）にしシステムトレイに格納。
 - **トレイアイコン操作**:
@@ -354,3 +374,5 @@ flowchart TD
     - `終了`: 終了確認ダイアログを呼び出し、ユーザー確認後にアプリ終了。
 - **閉じるボタン (X) 動作**:
   - イベントを `prevent_close` でインターセプトし、フロントエンドの終了確認ダイアログを表示。
+- **連動クローズ**:
+  - メインウィンドウが破棄（Destroyed）された際、開いているTraceroute等のすべてのサブウィンドウを連動して自動破棄し、プロセス残留を防止。

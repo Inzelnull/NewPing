@@ -16,13 +16,15 @@
 
 | プラットフォーム / 配布形式 | ダウンロードリンク | ファイルサイズ | 特徴 |
 | :--- | :--- | :--- | :--- |
-| **Windows スタンドアロン実行ファイル** | [📥 **NewPing.exe をダウンロード**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/NewPing.exe) | 約 10 MB | インストール不要。ダウンロード後そのまま起動できるポータブル版 |
-| **Windows NSIS インストーラー** | [📥 **NewPing_0.1.0_x64-setup.exe をダウンロード**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/bundle/nsis/NewPing_0.1.0_x64-setup.exe) | 約 2.4 MB | スタートメニューやデスクトップにショートカットを作成するセットアップ版 |
+| **Windows スタンドアロン実行ファイル** | [📥 **NewPing.exe をダウンロード**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/NewPing.exe) | 約 4.8 MB | インストール不要。ダウンロード後そのまま起動できるポータブル版（最適化済み） |
+| **Windows NSIS インストーラー** | [📥 **NewPing_0.1.0_x64-setup.exe をダウンロード**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/bundle/nsis/NewPing_0.1.0_x64-setup.exe) | 約 1.6 MB | スタートメニューやデスクトップにショートカットを作成するセットアップ版 |
 | **macOS DMG インストーラー** | [📥 **NewPing_0.1.0_aarch64.dmg をダウンロード**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/bundle/dmg/NewPing_0.1.0_aarch64.dmg) | 約 4.3 MB | macOS (Apple Silicon: M1/M2/M3/M4等) 向けディスクイメージ |
 
 > [!TIP]
 > - 初回起動時に Windows SmartScreen や macOS Gatekeeper の警告が表示された場合は、「詳細情報」→「実行」または「システム設定」→「プライバシーとセキュリティ」から許可してください。
 > - 監視対象リストは実行ファイル（または.appと同階層）に `ping-list.config` として自動保存されます。
+> - 各種設定（周期・ディレイ・サイズ等）は `ping-parameters.conf` として保存・自動復元されます。
+> - Traceroute結果や統計CSV等の出力先は、Windowsではアプリ同階層の `result` フォルダ、macOSでは書類フォルダ配下の `~/Documents/result` フォルダがデフォルトとなります（設定画面から自由に変更・参照・直接オープン可能）。
 
 ---
 
@@ -32,9 +34,9 @@
 - 🛡️ **高いセキュリティ・信頼性**: 個人管理サードパーティライブラリを完全排除。Microsoft公式・公的財団（The Commons Conservancy）・Rust標準機能・OS標準機能のみで構築し、マルウェア・サプライチェーン攻撃リスクを極小化。完全オフライン環境でも動作可能。
 - 🎯 **高精度 ICMP Ping (Win/Macマルチ対応)**:
   - **Windows**: Windows標準の `IcmpSendEcho` API を直接呼び出し、管理者権限不要でミリ秒単位の高精度計測。
-  - **macOS**: OS標準の BSD Ping (`/sbin/ping`) を連携し、管理者権限不要でミリ秒単位の高精度計測。
-  - 分割不可DFフラグ・動的パケットサイズ調整（32〜10000バイト）に対応。
-- 📊 **直感的なストリーム可視化**: 監視結果を「〇 (青/正常)」と「× (赤/不通)」のタイムライン形式で最新順に常時ストリーム表示。
+  - **macOS**: OS標準の BSD Ping (`/sbin/ping`) を連携。macOS Sequoia等のローカルネットワーク制限（TCC）環境下でも、SUID root権限を持つ `/usr/sbin/traceroute` (1ホップ・単一プローブ) による自動フォールバック計測を搭載し、高精度な死活監視を維持。
+  - 分割不可DFフラグ・動的パケットサイズ調整（32〜10000バイト）・NG時自動縮小に対応。
+- 📊 **直感的なストリーム可視化**: 監視結果を「〇 (青/通常正常)」「〇 (黄緑/macOS TCC回避正常)」「× (赤/不通)」のタイムライン形式で最新順に常時ストリーム表示。
 - 🚨 **不通検知アラート**: 監視対象のタイムアウトや不通を検知した際にポップアップで即座に通知。
 - 📈 **詳細統計 & CSVエクスポート**: パケットロス率、平均/最小/最大RTTをリアルタイムに自動集計。Excel対応（BOM付きUTF-8）のCSVファイルとしてエクスポート可能。
 - 🧭 **Traceroute（経路追跡 & 一括実行）**: 対象ホストへのネットワーク経路と各ホップの応答速度を調査可能（Windows: Win32 APIでShift-JISデコード、macOS: UTF-8標準ストリーム）。全対象の一括並行実行にも対応。
@@ -49,10 +51,10 @@
 | :--- | :--- |
 | **Ping結果** | 登録された全監視対象のPing結果をリアルタイムにストリーム表示。クリックで対象の統計情報を即座に参照可能。 |
 | **Ping対象設定** | 監視対象（IPアドレスまたはホスト名＋表示ラベル）の追加・編集・削除、および `ping-list.config` ファイルの保存・再読み込み。 |
-| **Ping設定** | 送信間隔（秒）、タイムアウト（ms）、データサイズ（Byte）、アラート通知の有効/無効、テーマ切替（ダーク/ライト）などを設定。 |
+| **Ping設定** | 送信間隔（秒）、ディレイ（ms）、パケットサイズ（Byte）、NG時自動縮小、タイムアウト（ms）、Tracerouteタイムアウト、結果保存先フォルダ、テーマ切替（ダーク/ライト）などを設定。 |
 | **Ping統計** | 全対象の送信回数、成功/失敗数、パケットロス率、最小/最大/平均RTTの集計一覧。CSV保存機能付き。 |
 | **Traceroute** | 指定したホストへの経路追跡をサブウィンドウで実行し、各ルーターのホップ情報を表示。 |
-| **マルチディスプレイ対応** | デュアルディスプレイ環境等で、実行ファイルやフォルダが存在するディスプレイを自動検知して中央に起動。 |
+| **マルチディスプレイ対応** | デュアルディスプレイ環境等で、実行ファイルや操作元が存在するディスプレイを自動検知して中央に起動。 |
 
 ---
 
@@ -62,10 +64,10 @@
 | :--- | :--- | :--- |
 | **デスクトップ基盤** | **Tauri v2** (`@tauri-apps/api`, `@tauri-apps/cli`) | デスクトップアプリ基盤、ウィンドウ・トレイ制御、IPC（公的財団管理） |
 | **バックエンド** | **Rust** (2021 Edition) | 非同期Pingループ処理、ファイルI/O、トレイ管理、マルチモニター検出 |
-| **Ping & 文字コードエンジン** | `windows-sys` (Win) / `/sbin/ping` (macOS) | **Windows**: Win32ネイティブ API / **macOS**: OS標準BSD Ping |
+| **Ping & 文字コードエンジン** | `windows-sys` (Win) / `/sbin/ping` + `/usr/sbin/traceroute` (macOS) | **Windows**: Win32ネイティブ API / **macOS**: OS標準BSD Ping + TCC制限自動回避ハイブリッド計測 |
 | **非同期ランタイム・同期** | `tokio`, `std::sync::Mutex` | マルチスレッド非同期処理、OSネイティブ同期 |
 | **フロントエンド** | **TypeScript, HTML5, Vanilla CSS** | UI構造、モダンUIデザイン、リアクティブ状態管理（Microsoft公式 TypeScript） |
-| **アイコン・フォント** | インラインSVG, OS標準フォント（Segoe UI / Meiryo / SF Pro / Consolas 等） | 外部CDN通信ゼロ・完全オフライン対応の高視認性UI |
+| **アイコン・フォント** | インラインSVG, OS標準フォント（Segoe UI / Meiryo / SF Pro / Hiragino Sans / Consolas 等） | 外部CDN通信ゼロ・完全オフライン対応の高視認性UI |
 | **ビルドツール** | **Vite** | 高速フロントエンドバンドラ・開発環境 |
 
 ---
@@ -82,6 +84,7 @@ NewPing/
 ├── 📄 tsconfig.json             # TypeScriptコンパイラ設定
 ├── 📄 vite.config.ts            # Viteバンドラ設定
 ├── ⚙️ ping-list.config          # 監視対象リストの設定ファイル
+├── ⚙️ ping-parameters.conf      # パラメータ設定（周期・ディレイ・サイズ・保存先等）の保存ファイル
 ├── 📄 README.md                 # プロジェクト概要・利用手順書（本ファイル）
 ├── 📄 SPECIFICATION.md          # アプリケーション詳細仕様書
 ├── 📄 LICENSE_AUDIT.md          # ライセンス・サプライチェーンセキュリティ監査書
@@ -95,13 +98,14 @@ NewPing/
 └── 📁 src-tauri/                # バックエンド（Tauri v2 / Rustコア）
     ├── ⚙️ Cargo.toml            # Rustクレート依存関係定義
     ├── ⚙️ tauri.conf.json       # Tauri設定（ウィンドウ構成、システムトレイ、セキュリティ権限等）
+    ├── 📜 Info.plist            # macOSアプリ設定（ローカルネットワーク利用パーミッション説明）
     ├── 📜 build.rs              # Tauriビルドスクリプト
     ├── 📁 capabilities/         # アプリケーション権限設定 (default.json)
     ├── 📁 icons/                # アプリアイコンおよび動的トレイアイコン (idle/running/green/red等)
     └── 📁 src/                  # Rustソースコード
         ├── 🦀 main.rs           # エントリポイント
         ├── 🦀 lib.rs            # IPCコマンドハンドラ、トレイ制御、マルチディスプレイ検出
-        ├── 🦀 pinger.rs         # Win32 IcmpSendEcho (Win) / BSD Ping (macOS) による非同期Ping監視エンジン
+        ├── 🦀 pinger.rs         # Win32 IcmpSendEcho (Win) / BSD Ping + Traceroute回避 (macOS) による非同期Ping監視エンジン
         └── 🦀 traceroute.rs     # Traceroute経路追跡エンジン (tracert / traceroute)
 ```
 
