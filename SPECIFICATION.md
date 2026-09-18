@@ -38,7 +38,7 @@
 ### 1.2 主な特長
 - **超軽量＆高速動作**: Tauri v2 + Rust による最小限のリソース消費と高速起動。
 - **高精度 ICMP Ping**: Windows標準の `IcmpSendEcho` API を直接呼び出し、高精度な往復遅延時間(RTT)をミリ秒単位で計測。
-- **直感的なストリーム可視化**: 監視結果を「〇(青/正常)」と「×(赤/不通)」のタイムライン形式で最新順に常時表示。
+- **直感的なストリーム可視化**: 監視結果を「〇(青/通常正常)」、「〇(黄緑/macOS TCC回避正常)」、「×(赤/不通)」のタイムライン形式で最新順に常時表示。
 - **不通検知アラート**: Ping失敗（タイムアウト）が発生した機器を即座にポップアップ検知。
 - **詳細統計とCSV保存**: パケットロス率、平均/最小/最大RTTをリアルタイム自動集計し、Excel対応のCSV形式で保存可能。
 - **トレイ常駐 & テーマ切替**: システムトレイへの最小化格納、ダークモード/ホワイトモードの切替に対応。
@@ -51,7 +51,7 @@
 | :--- | :--- | :--- |
 | **デスクトップ基盤** | **Tauri v2** (`@tauri-apps/cli` ^2.11, `@tauri-apps/api` ^2.11) | デスクトップアプリ基盤、ウィンドウ制御、IPC通信（The Commons Conservancy公的財団管理） |
 | **バックエンド** | **Rust** (Edition 2021) | ネイティブICMP Ping実行、ファイルI/O、トレイ管理（Windows / macOSマルチプラットフォーム対応） |
-| **Ping & 文字コードエンジン** | `windows-sys` (Win) / `/sbin/ping` (macOS) | **Windows**: Microsoft公式 Win32 API (`IcmpSendEcho`) / **macOS**: OS標準BSD Ping (`/sbin/ping`) による高精度ICMP送信 |
+| **Ping & 文字コードエンジン** | `windows-sys` (Win) / `/sbin/ping` + `/usr/sbin/traceroute` (macOS) | **Windows**: Microsoft公式 Win32 API (`IcmpSendEcho`) / **macOS**: OS標準BSD Ping (`/sbin/ping`) + SUID root によるローカルネットワークTCC制限自動回避ハイブリッド計測 |
 | **非同期ランタイム・同期** | `tokio`, `std::sync::Mutex` | 非同期ループ、OSネイティブ同期 |
 | **フロントエンド** | **HTML5 / Vanilla CSS / TypeScript** | UI構造、モダンデザイン、ステート管理（Microsoft公式 TypeScript） |
 | **ビルドツール** | **Vite** ^8.2 | 高速フロントエンドビルド・開発サーバー |

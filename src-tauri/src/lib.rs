@@ -409,14 +409,14 @@ async fn start_ping(
                             }
 
                             // ブロッキングICMP API呼び出しをワーカースレッドで実行（解決済みIPv4で直接送信）
-                            let (success, rtt_ms) = if let Some(ipv4) = target_ipv4 {
+                            let (success, rtt_ms, is_fallback) = if let Some(ipv4) = target_ipv4 {
                                 tokio::task::spawn_blocking(move || {
                                     ping_resolved_ip(ipv4, timeout_val, round_packet_size)
                                 })
                                 .await
-                                .unwrap_or((false, None))
+                                .unwrap_or((false, None, false))
                             } else {
-                                (false, None)
+                                (false, None, false)
                             };
 
                             if !*task_stop_rx.borrow() {
@@ -433,6 +433,7 @@ async fn start_ping(
                                     timestamp: now_ts,
                                     packet_size: round_packet_size,
                                     is_adjusting: round_is_adjusting,
+                                    is_fallback,
                                 };
                                 // フロントエンドへ結果を通知
                                 let _ = app_h.emit("ping-result", result);

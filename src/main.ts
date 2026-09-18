@@ -41,6 +41,7 @@ interface PingResult {
   timestamp: number;
   packet_size?: number;
   is_adjusting?: boolean;
+  is_fallback?: boolean;
 }
 
 /** ターゲットごとの統計集計データ */
@@ -664,12 +665,14 @@ function handlePingResult(result: PingResult) {
 
   if (result.success) {
     const rtt = result.rtt_ms ?? 0;
-    item.className = "stream-item ok";
+    const isFallback = !!result.is_fallback;
+    item.className = isFallback ? "stream-item ok fallback" : "stream-item ok";
     item.textContent = "〇";
-    item.setAttribute("data-tooltip", `[${timeStr}] 応答: ${rtt}ms (${pktSize}B)`);
+    const note = isFallback ? " [macOS TCC制限回避(Traceroute)]" : "";
+    item.setAttribute("data-tooltip", `[${timeStr}] 応答: ${rtt}ms (${pktSize}B)${note}`);
 
     if (statusEl) {
-      statusEl.className = "badge-status ok";
+      statusEl.className = isFallback ? "badge-status ok fallback" : "badge-status ok";
       statusEl.textContent = `${rtt} ms`;
     }
   } else {

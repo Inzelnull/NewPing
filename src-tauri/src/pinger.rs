@@ -42,6 +42,8 @@ pub struct PingResult {
     pub packet_size: u32,
     /// 連続NGによる自動パケット縮小処理中フラグ
     pub is_adjusting: bool,
+    /// macOS TCC制限回避のためのTracerouteフォールバック計測フラグ
+    pub is_fallback: bool,
 }
 
 /// ターゲット文字列（IPアドレスまたはホスト名）からIPv4アドレスを解決する関数
@@ -82,7 +84,7 @@ fn generate_payload(size: usize) -> Vec<u8> {
 
 /// 解決済みIPv4アドレスに対してWindowsネイティブの IcmpSendEcho API でPingを送信する
 #[cfg(windows)]
-pub fn ping_resolved_ip(ipv4: Ipv4Addr, timeout_ms: u32, packet_size: u32) -> (bool, Option<u32>) {
+pub fn ping_resolved_ip(ipv4: Ipv4Addr, timeout_ms: u32, packet_size: u32) -> (bool, Option<u32>, bool) {
     use std::ffi::c_void;
     use std::mem::size_of;
     use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
@@ -94,7 +96,7 @@ pub fn ping_resolved_ip(ipv4: Ipv4Addr, timeout_ms: u32, packet_size: u32) -> (b
         // ICMP 送信用ハンドルを開く
         let handle = IcmpCreateFile();
         if handle == INVALID_HANDLE_VALUE {
-            return (false, None);
+            return (false, None, false);
         }
 
         let octets = ipv4.octets();
@@ -137,17 +139,17 @@ pub fn ping_resolved_ip(ipv4: Ipv4Addr, timeout_ms: u32, packet_size: u32) -> (b
             let reply = &*(reply_buffer.as_ptr() as *const ICMP_ECHO_REPLY);
             // Status == 0 (IP_SUCCESS) であれば疎通成功
             if reply.Status == 0 {
-                return (true, Some(reply.RoundTripTime));
+                return (true, Some(reply.RoundTripTime), false);
             }
         }
 
-        (false, None)
+        (false, None, false)
     }
 }
 
 /// macOS環境向け: OS標準の `/sbin/ping` (BSD ping) を用いてPingを実行
 #[cfg(target_os = "macos")]
-pub fn ping_resolved_ip(ipv4: Ipv4Addr, timeout_ms: u32, packet_size: u32) -> (bool, Option<u32>) {
+pub fn ping_resolved_ip(ipv4: Ipv4Addr, timeout_ms: u32, packet_size: u32) -> (bool, Option<u32>, bool) {
     use std::process::Command;
 
     let ip_str = ipv4.to_string();
@@ -156,12 +158,14 @@ pub fn ping_resolved_ip(ipv4: Ipv4Addr, timeout_ms: u32, packet_size: u32) -> (b
 
     // macOS BSD ping オプション:
     // -c 1: 1パケット送信
+    // -n: DNS逆引き（ホスト名検索）を行わずIP数値のみ表示（遅延防止）
     // -W <timeout_ms>: 応答待ちタイムアウト (ミリ秒)
     // -s <packet_size>: データペイロードサイズ (バイト)
     // -D: Don't Fragment (DF) ビット付与
     let output = Command::new("/sbin/ping")
         .args([
             "-c", "1",
+            "-n",
             "-W", &timeout_str,
             "-s", &packet_size_str,
             "-D",
@@ -169,7 +173,7 @@ pub fn ping_resolved_ip(ipv4: Ipv4Addr, timeout_ms: u32, packet_size: u32) -> (b
         ])
         .output();
 
-    match output {
+    let (mut success, mut rtt) = match output {
         Ok(out) => {
             let stdout_str = String::from_utf8_lossy(&out.stdout);
             let stderr_str = String::from_utf8_lossy(&out.stderr);
@@ -177,7 +181,58 @@ pub fn ping_resolved_ip(ipv4: Ipv4Addr, timeout_ms: u32, packet_size: u32) -> (b
             parse_bsd_ping_output(&combined)
         }
         Err(_) => (false, None),
+    };
+
+    let mut is_fallback = false;
+
+    // macOS Sequoia Local Network Privacy (TCC) 回避用フェイルセーフ:
+    // プライベートIP(LAN)宛てで /sbin/ping が遮断・パケットロスとなった場合、
+    // SUID root 権限を持つ /usr/sbin/traceroute (1ホップ・単一プローブ) でフォールバック計測を実行
+    if !success && (ipv4.is_private() || ipv4.is_link_local()) {
+        let timeout_secs = ((timeout_ms + 999) / 1000).clamp(1, 5).to_string();
+        let tr_output = Command::new("/usr/sbin/traceroute")
+            .args([
+                "-n",
+                "-q", "1",
+                "-m", "1",
+                "-w", &timeout_secs,
+                &ip_str,
+            ])
+            .output();
+
+        if let Ok(out) = tr_output {
+            let tr_stdout = String::from_utf8_lossy(&out.stdout);
+            let (tr_ok, tr_rtt) = parse_traceroute_one_hop(&tr_stdout, &ip_str);
+            if tr_ok {
+                success = true;
+                rtt = tr_rtt;
+                is_fallback = true;
+            }
+        }
     }
+
+    (success, rtt, is_fallback)
+}
+
+/// 1ホップの traceroute 出力から対象IPの疎通成否とRTT(ms)を取得
+pub fn parse_traceroute_one_hop(output: &str, target_ip: &str) -> (bool, Option<u32>) {
+    for line in output.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("1 ") || trimmed.starts_with("1\t") {
+            if trimmed.contains(target_ip) && trimmed.contains("ms") {
+                if let Some(ms_pos) = trimmed.find("ms") {
+                    let before_ms = trimmed[..ms_pos].trim();
+                    if let Some(val_str) = before_ms.split_whitespace().last() {
+                        if let Ok(val) = val_str.parse::<f64>() {
+                            return (true, Some(val.round() as u32));
+                        }
+                    }
+                }
+                return (true, Some(1));
+            }
+        }
+    }
+    (false, None)
 }
 
 /// BSD系 (macOS) ping コマンドの標準出力を解析して成否とRTT(ms)を取得
@@ -232,17 +287,17 @@ pub fn parse_bsd_ping_output(output: &str) -> (bool, Option<u32>) {
 
 /// WindowsおよびmacOS以外のUNIX環境向けのモック/フォールバック実装
 #[cfg(all(not(windows), not(target_os = "macos")))]
-pub fn ping_resolved_ip(_ipv4: Ipv4Addr, _timeout_ms: u32, _packet_size: u32) -> (bool, Option<u32>) {
-    (true, Some(10))
+pub fn ping_resolved_ip(_ipv4: Ipv4Addr, _timeout_ms: u32, _packet_size: u32) -> (bool, Option<u32>, bool) {
+    (true, Some(10), false)
 }
 
 /// IP文字列またはホスト名を受け取ってPingを送信するエントリーポイント（後方互換性および単体呼び出し用）
 #[allow(dead_code)]
-pub fn ping_host(target_ip: &str, timeout_ms: u32, packet_size: u32) -> (bool, Option<u32>) {
+pub fn ping_host(target_ip: &str, timeout_ms: u32, packet_size: u32) -> (bool, Option<u32>, bool) {
     if let Some(ipv4) = resolve_target_ipv4(target_ip) {
         ping_resolved_ip(ipv4, timeout_ms, packet_size)
     } else {
-        (false, None)
+        (false, None, false)
     }
 }
 
@@ -258,21 +313,21 @@ mod tests {
 
     #[test]
     fn test_ping_localhost_default_size() {
-        let (success, rtt) = ping_host("127.0.0.1", 1000, 32);
+        let (success, rtt, _) = ping_host("127.0.0.1", 1000, 32);
         assert!(success, "Localhost ping with 32B payload should succeed");
         assert!(rtt.is_some());
     }
 
     #[test]
     fn test_ping_localhost_custom_size_df() {
-        let (success, rtt) = ping_host("127.0.0.1", 1000, 1472);
+        let (success, rtt, _) = ping_host("127.0.0.1", 1000, 1472);
         assert!(success, "Localhost ping with 1472B payload and DF should succeed");
         assert!(rtt.is_some());
     }
 
     #[test]
     fn test_ping_invalid_ip() {
-        let (success, _) = ping_host("999.999.999.999", 500, 32);
+        let (success, _, _) = ping_host("999.999.999.999", 500, 32);
         assert!(!success, "Invalid IP ping should fail");
     }
 
