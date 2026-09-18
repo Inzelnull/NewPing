@@ -73,19 +73,51 @@ pub fn get_app_base_dir() -> PathBuf {
     PathBuf::from(".")
 }
 
-/// 指定された保存先フォルダパスを解決（相対パスならツール配下、絶対パスならそのまま、未指定なら 'result'）
+/// 指定された保存先フォルダパスを解決
+/// - macOSの場合: 書類フォルダ (~/Documents) 配下の 'result' フォルダを基準とし、存在しなければ自動作成
+/// - Windows等の場合: ツール配下の 'result' フォルダを基準とする
 pub fn resolve_save_dir(custom_dir: Option<&str>) -> PathBuf {
-    let base_dir = get_app_base_dir();
-    match custom_dir {
-        Some(d) if !d.trim().is_empty() => {
-            let path = PathBuf::from(d.trim());
-            if path.is_absolute() {
-                path
-            } else {
-                base_dir.join(path)
+    #[cfg(target_os = "macos")]
+    {
+        let docs_dir = std::env::var("HOME")
+            .map(|h| PathBuf::from(h).join("Documents"))
+            .unwrap_or_else(|_| get_app_base_dir());
+
+        let target = match custom_dir {
+            Some(d) if !d.trim().is_empty() => {
+                let trimmed = d.trim();
+                let path = PathBuf::from(trimmed);
+                if path.is_absolute() {
+                    path
+                } else if trimmed == "result" || trimmed == "./result" {
+                    docs_dir.join("result")
+                } else {
+                    docs_dir.join(path)
+                }
             }
+            _ => docs_dir.join("result"),
+        };
+
+        if !target.exists() {
+            let _ = std::fs::create_dir_all(&target);
         }
-        _ => base_dir.join("result"),
+        target
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let base_dir = get_app_base_dir();
+        match custom_dir {
+            Some(d) if !d.trim().is_empty() => {
+                let path = PathBuf::from(d.trim());
+                if path.is_absolute() {
+                    path
+                } else {
+                    base_dir.join(path)
+                }
+            }
+            _ => base_dir.join("result"),
+        }
     }
 }
 
@@ -922,4 +954,24 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn test_resolve_save_dir_macos() {
+        let dir_none = resolve_save_dir(None);
+        assert!(dir_none.to_string_lossy().ends_with("Documents/result"));
+        assert!(dir_none.exists());
+
+        let dir_result = resolve_save_dir(Some("result"));
+        assert_eq!(dir_none, dir_result);
+        assert!(dir_result.exists());
+
+        let dir_relative = resolve_save_dir(Some("./result"));
+        assert_eq!(dir_none, dir_relative);
+    }
 }

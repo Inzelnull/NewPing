@@ -10,6 +10,11 @@ src-tauri/target/*
 src-tauri/target/release/*
 !src-tauri/target/release/*.exe
 !src-tauri/target/release/bundle/
+src-tauri/target/release/bundle/*
+!src-tauri/target/release/bundle/nsis/
+!src-tauri/target/release/bundle/dmg/
+src-tauri/target/release/bundle/dmg/*
+!src-tauri/target/release/bundle/dmg/*.dmg
 src-tauri/gen/schemas/
 
 # Logs

@@ -148,8 +148,8 @@ npm run tauri build
 | :--- | :--- | :--- |
 | **Windows スタンドアロン実行ファイル** | `src-tauri/target/release/NewPing.exe` | インストール不要で単体起動できるポータブル実行バイナリ |
 | **Windows NSIS インストーラー** | `src-tauri/target/release/bundle/nsis/Pingツール_0.1.0_x64-setup.exe` | スタートメニューやデスクトップショートカットを作成するセットアッププログラム |
-| **macOS DMG インストーラー** | `src-tauri/target/release/bundle/dmg/Pingツール_0.1.0_x64.dmg` (または aarch64) | ドラッグ＆ドロップでインストール可能なディスクイメージ |
-| **macOS App バンドル** | `src-tauri/target/release/bundle/macos/Pingツール.app` | macOSスタンドアロンアプリケーションバンドル |
+| **macOS DMG インストーラー** | `src-tauri/target/release/bundle/dmg/NewPing_0.1.0_aarch64.dmg` (または x64) | ドラッグ＆ドロップでインストール可能なディスクイメージ |
+| **macOS App バンドル** | `src-tauri/target/release/bundle/macos/NewPing.app` | macOSスタンドアロンアプリケーションバンドル |
 
 
 ---

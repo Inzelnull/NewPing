@@ -62,6 +62,7 @@ pub fn resolve_target_ipv4(target_ip: &str) -> Option<Ipv4Addr> {
 }
 
 /// ペイロードバッファを生成するヘルパー関数（32〜10000バイト）
+#[cfg(windows)]
 #[inline]
 fn generate_payload(size: usize) -> Vec<u8> {
     let clamped_size = size.clamp(32, 10000);
