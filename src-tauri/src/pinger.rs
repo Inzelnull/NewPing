@@ -144,8 +144,93 @@ pub fn ping_resolved_ip(ipv4: Ipv4Addr, timeout_ms: u32, packet_size: u32) -> (b
     }
 }
 
-/// 非Windows環境向けのモック実装（テスト・ビルド用）
-#[cfg(not(windows))]
+/// macOS環境向け: OS標準の `/sbin/ping` (BSD ping) を用いてPingを実行
+#[cfg(target_os = "macos")]
+pub fn ping_resolved_ip(ipv4: Ipv4Addr, timeout_ms: u32, packet_size: u32) -> (bool, Option<u32>) {
+    use std::process::Command;
+
+    let ip_str = ipv4.to_string();
+    let packet_size_str = packet_size.clamp(32, 10000).to_string();
+    let timeout_str = timeout_ms.to_string();
+
+    // macOS BSD ping オプション:
+    // -c 1: 1パケット送信
+    // -W <timeout_ms>: 応答待ちタイムアウト (ミリ秒)
+    // -s <packet_size>: データペイロードサイズ (バイト)
+    // -D: Don't Fragment (DF) ビット付与
+    let output = Command::new("/sbin/ping")
+        .args([
+            "-c", "1",
+            "-W", &timeout_str,
+            "-s", &packet_size_str,
+            "-D",
+            &ip_str,
+        ])
+        .output();
+
+    match output {
+        Ok(out) => {
+            let stdout_str = String::from_utf8_lossy(&out.stdout);
+            let stderr_str = String::from_utf8_lossy(&out.stderr);
+            let combined = format!("{}\n{}", stdout_str, stderr_str);
+            parse_bsd_ping_output(&combined)
+        }
+        Err(_) => (false, None),
+    }
+}
+
+/// BSD系 (macOS) ping コマンドの標準出力を解析して成否とRTT(ms)を取得
+#[allow(dead_code)]
+pub fn parse_bsd_ping_output(output: &str) -> (bool, Option<u32>) {
+    let mut received_ok = false;
+    let mut parsed_rtt: Option<u32> = None;
+
+    for line in output.lines() {
+        let lower = line.to_lowercase();
+        // "1 packets received" または "1 received"
+        if lower.contains("1 packets received") || lower.contains("1 received") {
+            received_ok = true;
+        }
+
+        // "time=0.123 ms" または "time=12 ms"
+        if let Some(pos) = lower.find("time=") {
+            let after = &lower[pos + 5..];
+            let num_part: String = after
+                .chars()
+                .take_while(|c| c.is_ascii_digit() || *c == '.')
+                .collect();
+            if let Ok(val) = num_part.parse::<f64>() {
+                received_ok = true;
+                parsed_rtt = Some(val.round() as u32);
+            }
+        }
+
+        // "round-trip min/avg/max/stddev = 0.082/0.082/0.082/0.000 ms"
+        if lower.contains("min/avg/max") {
+            if let Some(eq_pos) = line.find('=') {
+                let metrics = &line[eq_pos + 1..].trim();
+                let parts: Vec<&str> = metrics.split('/').collect();
+                if parts.len() >= 2 {
+                    if let Ok(avg_val) = parts[1].trim().parse::<f64>() {
+                        received_ok = true;
+                        if parsed_rtt.is_none() {
+                            parsed_rtt = Some(avg_val.round() as u32);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if received_ok {
+        (true, parsed_rtt.or(Some(0)))
+    } else {
+        (false, None)
+    }
+}
+
+/// WindowsおよびmacOS以外のUNIX環境向けのモック/フォールバック実装
+#[cfg(all(not(windows), not(target_os = "macos")))]
 pub fn ping_resolved_ip(_ipv4: Ipv4Addr, _timeout_ms: u32, _packet_size: u32) -> (bool, Option<u32>) {
     (true, Some(10))
 }
@@ -188,6 +273,50 @@ mod tests {
     fn test_ping_invalid_ip() {
         let (success, _) = ping_host("999.999.999.999", 500, 32);
         assert!(!success, "Invalid IP ping should fail");
+    }
+
+    #[test]
+    fn test_parse_bsd_ping_output_success() {
+        let sample_output = r#"
+PING 127.0.0.1 (127.0.0.1): 32 data bytes
+40 bytes from 127.0.0.1: icmp_seq=0 ttl=64 time=0.082 ms
+
+--- 127.0.0.1 ping statistics ---
+1 packets transmitted, 1 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = 0.082/0.082/0.082/0.000 ms
+"#;
+        let (success, rtt) = parse_bsd_ping_output(sample_output);
+        assert!(success);
+        assert_eq!(rtt, Some(0)); // 0.082ms rounds to 0ms
+    }
+
+    #[test]
+    fn test_parse_bsd_ping_output_normal_rtt() {
+        let sample_output = r#"
+PING 8.8.8.8 (8.8.8.8): 32 data bytes
+40 bytes from 8.8.8.8: icmp_seq=0 ttl=116 time=14.320 ms
+
+--- 8.8.8.8 ping statistics ---
+1 packets transmitted, 1 packets received, 0.0% packet loss
+round-trip min/avg/max/stddev = 14.320/14.320/14.320/0.000 ms
+"#;
+        let (success, rtt) = parse_bsd_ping_output(sample_output);
+        assert!(success);
+        assert_eq!(rtt, Some(14));
+    }
+
+    #[test]
+    fn test_parse_bsd_ping_output_timeout() {
+        let sample_output = r#"
+PING 192.0.2.1 (192.0.2.1): 32 data bytes
+Request timeout for icmp_seq 0
+
+--- 192.0.2.1 ping statistics ---
+1 packets transmitted, 0 packets received, 100.0% packet loss
+"#;
+        let (success, rtt) = parse_bsd_ping_output(sample_output);
+        assert!(!success);
+        assert_eq!(rtt, None);
     }
 }
 

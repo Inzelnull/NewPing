@@ -50,12 +50,12 @@
 | 区分 | 技術・ライブラリ | 用途 / 補足 |
 | :--- | :--- | :--- |
 | **デスクトップ基盤** | **Tauri v2** (`@tauri-apps/cli` ^2.11, `@tauri-apps/api` ^2.11) | デスクトップアプリ基盤、ウィンドウ制御、IPC通信（The Commons Conservancy公的財団管理） |
-| **バックエンド** | **Rust** (Edition 2021) | ネイティブICMP Ping実行、ファイルI/O、トレイ管理 |
-| **Ping & 文字コードエンジン** | `windows-sys` (IpHelper: `IcmpSendEcho`, Globalization: `MultiByteToWideChar`) | **Microsoft公式** Win32 APIによる直接ICMP Echo送信およびCP932/Shift-JISデコード |
-| **非同期ランタイム・同期** | `tokio`, `std::sync::Mutex` | 非同期ループ、OSネイティブSRWLOCK同期 |
+| **バックエンド** | **Rust** (Edition 2021) | ネイティブICMP Ping実行、ファイルI/O、トレイ管理（Windows / macOSマルチプラットフォーム対応） |
+| **Ping & 文字コードエンジン** | `windows-sys` (Win) / `/sbin/ping` (macOS) | **Windows**: Microsoft公式 Win32 API (`IcmpSendEcho`) / **macOS**: OS標準BSD Ping (`/sbin/ping`) による高精度ICMP送信 |
+| **非同期ランタイム・同期** | `tokio`, `std::sync::Mutex` | 非同期ループ、OSネイティブ同期 |
 | **フロントエンド** | **HTML5 / Vanilla CSS / TypeScript** | UI構造、モダンデザイン、ステート管理（Microsoft公式 TypeScript） |
 | **ビルドツール** | **Vite** ^8.2 | 高速フロントエンドビルド・開発サーバー |
-| **フォント・アイコン** | インラインSVG, Windows標準フォント（Segoe UI / Meiryo / Consolas 等） | 外部CDN通信ゼロ・完全オフライン対応の高視認性UIタイポグラフィ |
+| **フォント・アイコン** | インラインSVG, OS標準フォント（Segoe UI / Meiryo / SF Pro / Consolas 等） | 外部CDN通信ゼロ・完全オフライン対応の高視認性UIタイポグラフィ |
 
 ---
 
@@ -290,7 +290,11 @@ flowchart TD
   - **高速ペイロード生成**: 指定サイズ（32〜10000バイト）のASCIIパターン列を安全かつゼロコピーに近い効率で生成（`generate_payload`）。
   - `IP_OPTION_INFORMATION` の `Flags` に `0x02` (`IP_FLAG_DF`: Don't Fragment) を設定し、パケット分割不可フラグを付与。
   - レスポンスの `Status == 0` (IP_SUCCESS) の場合に `RoundTripTime` を取得し成功と判定。
-- **その他OS (`cfg(not(windows))`)**:
+- **macOS環境 (`cfg(target_os = "macos")`)**:
+  - OS標準の `/sbin/ping` (BSD ping) を非同期プロセスとして呼び出し、管理者権限不要でミリ秒単位のPing計測を実行。
+  - `-c 1` (1回送信)、`-W <timeout_ms>` (タイムアウトミリ秒)、`-s <packet_size>` (ペイロード長)、`-D` (Don't Fragmentフラグ) を指定。
+  - 標準出力の `time=X.X ms` または `round-trip min/avg/max` を高精度パースして成否とRTTを取得。
+- **その他OS (`cfg(all(not(windows), not(target_os = "macos")))`)**:
   - 開発/クロスプラットフォーム用モックハンドラ。
 
 ### 7.2 高速レンダリング & DOMキャッシュ仕様 (`main.ts`)

@@ -56,6 +56,15 @@ pub fn get_app_base_dir() -> PathBuf {
                 return curr_dir;
             }
         }
+        // macOSの .app バンドル内の場合 (Contents/MacOS)、.app の親ディレクトリ（実行配置場所）を基準にする
+        #[cfg(target_os = "macos")]
+        {
+            if exe_dir.ends_with("Contents/MacOS") {
+                if let Some(app_bundle) = exe_dir.parent().and_then(|p| p.parent()).and_then(|p| p.parent()) {
+                    return app_bundle.to_path_buf();
+                }
+            }
+        }
         return exe_dir;
     }
     if let Ok(curr_dir) = std::env::current_dir() {
@@ -498,7 +507,41 @@ async fn select_folder(default_path: Option<String>) -> Result<Option<String>, S
                 Err(format!("フォルダ選択に失敗しました: {}", err_str))
             }
         }
-        #[cfg(not(target_os = "windows"))]
+        #[cfg(target_os = "macos")]
+        {
+            // AppleScript で Finder の標準フォルダ選択ダイアログを表示
+            let script = format!(
+                "try\n\
+                    tell application \"System Events\"\n\
+                        activate\n\
+                        set selectedFolder to choose folder with prompt \"結果保存先フォルダを選択してください\" default location POSIX file \"{}\"\n\
+                        POSIX path of selectedFolder\n\
+                    end tell\n\
+                on error\n\
+                    \"\"\n\
+                end try",
+                initial_dir.replace('\"', "\\\"")
+            );
+
+            let output = std::process::Command::new("osascript")
+                .args(["-e", &script])
+                .output()
+                .map_err(|e| format!("フォルダ選択ダイアログの起動に失敗しました: {}", e))?;
+
+            if output.status.success() {
+                let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if path_str.is_empty() {
+                    Ok(None)
+                } else {
+                    let cleaned = path_str.trim_end_matches('/').to_string();
+                    Ok(Some(cleaned))
+                }
+            } else {
+                let err_str = String::from_utf8_lossy(&output.stderr);
+                Err(format!("フォルダ選択に失敗しました: {}", err_str))
+            }
+        }
+        #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
         {
             Ok(None)
         }

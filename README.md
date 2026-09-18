@@ -4,9 +4,9 @@
 [![Rust](https://img.shields.io/badge/Rust-2021-orange.svg?logo=rust)](https://www.rust-lang.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-7.0-blue.svg?logo=typescript)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-8.2-purple.svg?logo=vite)](https://vitejs.dev/)
-[![Platform](https://img.shields.io/badge/Platform-Windows-0078D6.svg?logo=windows)](https://microsoft.com/windows)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS-0078D6.svg)](https://github.com/Inzelnull/NewPing)
 
-**NewPing** は、ネットワーク機器（サーバー、ルーター、DNS、PC等）の死活監視および応答品質（RTT・パケットロス率）をリアルタイムかつ直感的に監視できる、軽量・高速なデスクトップ向けネットワーク監視アプリケーションです。
+**NewPing** は、ネットワーク機器（サーバー、ルーター、DNS、PC等）の死活監視および応答品質（RTT・パケットロス率）をリアルタイムかつ直感的に監視できる、軽量・高速なデスクトップ向けネットワーク監視アプリケーションです（Windows / macOS 両対応）。
 
 ---
 
@@ -14,26 +14,30 @@
 
 環境に合わせて以下のいずれかをダウンロードしてご利用ください：
 
-| 配布形式 | ダウンロードリンク | ファイルサイズ | 特徴 |
+| プラットフォーム / 配布形式 | ダウンロードリンク | ファイルサイズ | 特徴 |
 | :--- | :--- | :--- | :--- |
-| **スタンドアロン実行ファイル** | [📥 **NewPing.exe をダウンロード**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/NewPing.exe) | 約 10 MB | インストール不要。ダウンロード後そのまま起動できるポータブル版 |
-| **NSIS インストーラー** | [📥 **Pingツール_0.1.0_x64-setup.exe をダウンロード**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/bundle/nsis/Ping%E3%83%84%E3%83%BC%E3%83%AB_0.1.0_x64-setup.exe) | 約 2.4 MB | スタートメニューやデスクトップにショートカットを作成するセットアップ版 |
+| **Windows スタンドアロン実行ファイル** | [📥 **NewPing.exe をダウンロード**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/NewPing.exe) | 約 10 MB | インストール不要。ダウンロード後そのまま起動できるポータブル版 |
+| **Windows NSIS インストーラー** | [📥 **Pingツール_0.1.0_x64-setup.exe をダウンロード**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/bundle/nsis/Ping%E3%83%84%E3%83%BC%E3%83%AB_0.1.0_x64-setup.exe) | 約 2.4 MB | スタートメニューやデスクトップにショートカットを作成するセットアップ版 |
+| **macOS DMG / App** | `src-tauri/target/release/bundle/dmg/` | 各種 | macOS (Apple Silicon / Intel) 向けディスクイメージおよびアプリケーションバンドル |
 
 > [!TIP]
-> - 初回起動時に Windows SmartScreen の警告が表示された場合は、「詳細情報」→「実行」をクリックしてください。
-> - 監視対象リストは実行ファイルと同じフォルダに `ping-list.config` として自動保存されます。
+> - 初回起動時に Windows SmartScreen や macOS Gatekeeper の警告が表示された場合は、「詳細情報」→「実行」または「システム設定」→「プライバシーとセキュリティ」から許可してください。
+> - 監視対象リストは実行ファイル（または.appと同階層）に `ping-list.config` として自動保存されます。
 
 ---
 
 ## ✨ 主な特長
 
 - 🚀 **超軽量＆極限の高速動作**: Tauri v2 + Rust による最小限のメモリ・CPUリソース消費。事前DNS解決キャッシュとゼロフリッカーDOM要素キャッシュにより、複数対象の常時Ping監視時も超低負荷でスムーズに動作。
-- 🛡️ **高いセキュリティ・信頼性**: 個人管理サードパーティライブラリを完全排除。Microsoft公式・公的財団（The Commons Conservancy）・Rust標準機能のみで構築し、マルウェア・サプライチェーン攻撃リスクを極小化。完全オフライン環境でも動作可能。
-- 🎯 **高精度 ICMP Ping**: Windows標準の `IcmpSendEcho` API を直接呼び出し、管理者権限不要でミリ秒単位の高精度な往復遅延時間（RTT）を計測（分割不可DFフラグ・動的パケットサイズ調整対応）。
+- 🛡️ **高いセキュリティ・信頼性**: 個人管理サードパーティライブラリを完全排除。Microsoft公式・公的財団（The Commons Conservancy）・Rust標準機能・OS標準機能のみで構築し、マルウェア・サプライチェーン攻撃リスクを極小化。完全オフライン環境でも動作可能。
+- 🎯 **高精度 ICMP Ping (Win/Macマルチ対応)**:
+  - **Windows**: Windows標準の `IcmpSendEcho` API を直接呼び出し、管理者権限不要でミリ秒単位の高精度計測。
+  - **macOS**: OS標準の BSD Ping (`/sbin/ping`) を連携し、管理者権限不要でミリ秒単位の高精度計測。
+  - 分割不可DFフラグ・動的パケットサイズ調整（32〜10000バイト）に対応。
 - 📊 **直感的なストリーム可視化**: 監視結果を「〇 (青/正常)」と「× (赤/不通)」のタイムライン形式で最新順に常時ストリーム表示。
 - 🚨 **不通検知アラート**: 監視対象のタイムアウトや不通を検知した際にポップアップで即座に通知。
 - 📈 **詳細統計 & CSVエクスポート**: パケットロス率、平均/最小/最大RTTをリアルタイムに自動集計。Excel対応（BOM付きUTF-8）のCSVファイルとしてエクスポート可能。
-- 🧭 **Traceroute（経路追跡 & 一括実行）**: 対象ホストへのネットワーク経路と各ホップの応答速度を調査可能（OSネイティブWin32 APIでShift-JIS/CP932を安全・正確にデコード）。全対象の一括並行実行にも対応。
+- 🧭 **Traceroute（経路追跡 & 一括実行）**: 対象ホストへのネットワーク経路と各ホップの応答速度を調査可能（Windows: Win32 APIでShift-JISデコード、macOS: UTF-8標準ストリーム）。全対象の一括並行実行にも対応。
 - 🎨 **ダーク / ライトテーマ対応**: システム環境や好みに応じてワンクリックで外観を切り替え可能。
 - 📌 **システムトレイ常駐**: 最小化時やバックグラウンドでの継続監視に対応。
 
@@ -58,10 +62,10 @@
 | :--- | :--- | :--- |
 | **デスクトップ基盤** | **Tauri v2** (`@tauri-apps/api`, `@tauri-apps/cli`) | デスクトップアプリ基盤、ウィンドウ・トレイ制御、IPC（公的財団管理） |
 | **バックエンド** | **Rust** (2021 Edition) | 非同期Pingループ処理、ファイルI/O、トレイ管理、マルチモニター検出 |
-| **Ping & 文字コードエンジン** | `windows-sys` (`IcmpSendEcho`, `MultiByteToWideChar`) | **Microsoft公式** Win32 API（ネイティブICMP送信 & Shift-JISデコード） |
-| **非同期ランタイム・同期** | `tokio`, `std::sync::Mutex` | マルチスレッド非同期処理、OSネイティブSRWLOCK同期 |
+| **Ping & 文字コードエンジン** | `windows-sys` (Win) / `/sbin/ping` (macOS) | **Windows**: Win32ネイティブ API / **macOS**: OS標準BSD Ping |
+| **非同期ランタイム・同期** | `tokio`, `std::sync::Mutex` | マルチスレッド非同期処理、OSネイティブ同期 |
 | **フロントエンド** | **TypeScript, HTML5, Vanilla CSS** | UI構造、モダンUIデザイン、リアクティブ状態管理（Microsoft公式 TypeScript） |
-| **アイコン・フォント** | インラインSVG, Windows標準フォント（Segoe UI / Meiryo / Consolas 等） | 外部CDN通信ゼロ・完全オフライン対応の高視認性UI |
+| **アイコン・フォント** | インラインSVG, OS標準フォント（Segoe UI / Meiryo / SF Pro / Consolas 等） | 外部CDN通信ゼロ・完全オフライン対応の高視認性UI |
 | **ビルドツール** | **Vite** | 高速フロントエンドバンドラ・開発環境 |
 
 ---
@@ -97,16 +101,16 @@ NewPing/
     └── 📁 src/                  # Rustソースコード
         ├── 🦀 main.rs           # エントリポイント
         ├── 🦀 lib.rs            # IPCコマンドハンドラ、トレイ制御、マルチディスプレイ検出
-        ├── 🦀 pinger.rs         # Win32 IcmpSendEcho APIによる非同期Ping監視エンジン
-        └── 🦀 traceroute.rs     # Win32ネイティブAPIによるTraceroute経路追跡エンジン
+        ├── 🦀 pinger.rs         # Win32 IcmpSendEcho (Win) / BSD Ping (macOS) による非同期Ping監視エンジン
+        └── 🦀 traceroute.rs     # Traceroute経路追跡エンジン (tracert / traceroute)
 ```
 
 ---
 
 ## 📋 動作要件
 
-- **OS**: Windows 10 / Windows 11 (64-bit)
-- **WebView2**: Windows標準搭載（通常はプリインストール済み）
+- **Windows**: Windows 10 / Windows 11 (64-bit), WebView2（通常はプリインストール済み）
+- **macOS**: macOS 11.0 Big Sur 以降 (Apple Silicon / Intel)
 
 ---
 
@@ -115,7 +119,8 @@ NewPing/
 ### 1. 前提条件のインストール
 - [Node.js](https://nodejs.org/) (v18 以上推奨)
 - [Rust](https://www.rust-lang.org/tools/install) (最新の stable ツールチェーン)
-- [C++ Build Tools (Visual Studio)](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+- **Windows**: [C++ Build Tools (Visual Studio)](https://visualstudio.microsoft.com/visual-cpp-build-tools/)
+- **macOS**: Xcode Command Line Tools (`xcode-select --install`)
 
 ### 2. リポジトリのクローンと依存関係のインストール
 ```bash
@@ -137,12 +142,14 @@ npm run tauri build
 
 ### 📦 生成される実行ファイルとインストーラーのパス
 
-ビルド完了後、以下のパスに実行ファイルおよびインストーラーが生成されます（クリックしてダウンロードも可能です）：
+ビルド完了後、OSに応じて以下のパスに実行ファイルおよびインストーラーが生成されます：
 
-| 種別 | ダウンロードリンク | ファイルパス | 説明 |
-| :--- | :--- | :--- | :--- |
-| **スタンドアロン実行ファイル** | [📥 **NewPing.exe**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/NewPing.exe) | `src-tauri/target/release/NewPing.exe` | インストール不要で単体起動できるポータブル実行バイナリ |
-| **NSIS インストーラー** | [📥 **Pingツール_0.1.0_x64-setup.exe**](https://github.com/Inzelnull/NewPing/raw/main/src-tauri/target/release/bundle/nsis/Ping%E3%83%84%E3%83%BC%E3%83%AB_0.1.0_x64-setup.exe) | `src-tauri/target/release/bundle/nsis/Pingツール_0.1.0_x64-setup.exe` | スタートメニューやデスクトップショートカットを作成するセットアッププログラム |
+| OS / 種別 | ファイルパス | 説明 |
+| :--- | :--- | :--- |
+| **Windows スタンドアロン実行ファイル** | `src-tauri/target/release/NewPing.exe` | インストール不要で単体起動できるポータブル実行バイナリ |
+| **Windows NSIS インストーラー** | `src-tauri/target/release/bundle/nsis/Pingツール_0.1.0_x64-setup.exe` | スタートメニューやデスクトップショートカットを作成するセットアッププログラム |
+| **macOS DMG インストーラー** | `src-tauri/target/release/bundle/dmg/Pingツール_0.1.0_x64.dmg` (または aarch64) | ドラッグ＆ドロップでインストール可能なディスクイメージ |
+| **macOS App バンドル** | `src-tauri/target/release/bundle/macos/Pingツール.app` | macOSスタンドアロンアプリケーションバンドル |
 
 
 ---
